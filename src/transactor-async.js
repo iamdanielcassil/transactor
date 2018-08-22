@@ -2,12 +2,34 @@
 
 let store = {};
 let maxKey = 0;
+let working = Promise.resolve();
 let get;
 let set;
 
 let init = function init(dataGet, dataSet) {
-	get = dataGet || defaultGet;
-	set = dataSet || defaultSet;
+	if (dataGet) {
+		if (dataGet.then) {
+			get = dataGet;
+		} else {
+			get = (key) => {
+				return Promise.resolve(dataGet(key));
+			}
+		}
+	} else {
+		get = defaultGet;
+	}
+
+	if (dataSet) {
+		if (dataSet.then) {
+			set = dataSet;
+		} else {
+			set = (key) => {
+				return Promise.resolve(dataSet(key, value));
+			}
+		}
+	} else {
+		set = defaultSet;
+	}
 }
 
 let create = function create(options) {
@@ -22,8 +44,8 @@ let create = function create(options) {
  * Default data store get function, uses a local object if no getter is provided.
  * @param {String} key 
  */
-function defaultGet() {
-	return Object.assign({}, store);
+function defaultGet(key) {
+	return Promise.resolve(Object.assign({}, store[key] || []));
 }
 
 /**
@@ -31,8 +53,8 @@ function defaultGet() {
  * @param {String} key 
  * @param {Any} value 
  */
-function defaultSet(value) {
-	return store = Object.assign({}, value);
+function defaultSet(key, value) {
+	return Promise.resolve(store[key] = Object.assign({}, value));
 }
 
 /**
@@ -42,13 +64,13 @@ function defaultSet(value) {
  */
 class Transactor {
 	constructor(options = { saveAsSequence: false, forceUniqueIds: false }) {
-		let transactionData = get() || [];
-		
-		this.key = getNextKey(transactionData);
-		this._revertedTransactions = [];
-		this.options = options;
-		transactionData[this.key] = [];
-		set(transactionData);
+		return get('transactions').then(transactionData => {
+			this.key = getNextKey(transactionData);
+			this._revertedTransactions = [];
+			this.options = options;
+			transactionData[this.key] = [];
+			return set('transactions', transactionData);
+		});
 	}
 
 	/**
@@ -58,15 +80,10 @@ class Transactor {
 	 * @param {Object} options 
 	 */
 	add(id, data, options = { save: true }) {
-		this._add(id, data, options);
-		this._revertedTransactions = [];
-	}
-
-	asyncAdd(id, data, options = { save: true }) {
-		return asyncWork(() => {
+		return this.asyncWork(() => {
 			this._add(id, data, options);
 			this._revertedTransactions = [];
-		})
+		});
 	}
 
 	/**
@@ -118,81 +135,44 @@ class Transactor {
 	 * clear all transactions
 	 */
 	clear() {
-		this._set();
-		this._revertedTransactions = [];
+		asyncWork(() => {
+			this._set();
+			this._revertedTransactions = [];
+		})
 	}
 
 	/**
 	 * destroy the store data for this transactor instance
 	 */
 	destroy() {
-		let transactionData = get();
+		let transactionData = get('transactions');
 
 		delete transactionData[this.key];
-		set(transactionData);
+		set('transactions', transactionData);
 	}
 
 	/**
 	 * get all transactions for this instance
 	 */
 	get() {
-		return this._get().map(t => t.data);
-	}
-
-	/**
-	 * call work function for each transaction.
-	 * @param {Function} work Function called for each transaction.  expects work to return a promise.
-	 * @returns Promise
-	 */
-	saveEach(work) {
-		let transactions = this._get();
-		let promises = [];
-	
-		transactions.forEach(transaction => {
-			if (transaction.options.save) {
-				promises.push(work(transaction.data));
-			}
-		});
-	
-		return Promise.all(promises);
-	}
-
-	/**
-	 * calls work function one time with array of transactions
-	 * @param {Function} work Function called for each transaction.  expects work to return a promise.
-	 * @returns Promise
-	 */
-	save(work) {
-		let transactions = this._get();
-		let dataToSave = transactions.filter(transaction => {
-			return transaction.options.save;
-		}).map(transaction => {
-			return transaction.data;
-		});
-
-		// only call work when we have transactions
-		if (dataToSave.length > 0) {
-			return Promise.resolve(work(dataToSave));
-		} else {
-			return Promise.resolve();
-		}
+		return asyncWork(this._get().map(t => t.data));
 	}
 
 	/**
 	 * Intenral get transactions for this instance
 	 */
 	_get() {
-		return get()[this.key] || [];
+		return asyncWork(get('transactions')[this.key] || []);
 	}
 
 	/**
 	 * Intenral set transactions for this instance
 	 */
 	_set(data = []) {
-		let transactions = get();
+		let transactions = get('transactions');
 
 		transactions[this.key] = data;
-		set(transactions);
+		set('transactions', transactions);
 	}
 
 	/**
@@ -234,6 +214,47 @@ class Transactor {
 	}
 }
 
+Transactor.prototype.async = {
+	/**
+	 * call work function for each transaction.
+	 * @param {Function} work Function called for each transaction.  expects work to return a promise.
+	 * @returns Promise
+	 */
+	saveEach: (work) => {
+		let transactions = this._get();
+		let promises = [];
+	
+		transactions.forEach(transaction => {
+			if (transaction.options.save) {
+				promises.push(work(transaction.data));
+			}
+		});
+	
+		return Promise.all(promises);
+	},
+
+	/**
+	 * calls work function one time with array of transactions
+	 * @param {Function} work Function called for each transaction.  expects work to return a promise.
+	 * @returns Promise
+	 */
+	save: (work) => {
+		let transactions = this._get();
+		let dataToSave = transactions.filter(transaction => {
+			return transaction.options.save;
+		}).map(transaction => {
+			return transaction.data;
+		});
+
+		// only call work when we have transactions
+		if (dataToSave.length > 0) {
+			return work(dataToSave);
+		}
+
+		return Promise.resolve();
+	}
+}
+
 function asyncWork(worker) {
 	let nextWorking = new Promise(resolve, reject, () => {
 		working.then(() => {
@@ -253,7 +274,9 @@ function getNextKey(transactionData) {
 	let keys = Object.keys(transactionData).map(k => k.replace('id-', '') * 1);
 
 	keys.push(maxKey);
-	maxKey = keys.length > 1 ? Math.max(...keys) + 1 : 0;
+
+	maxKey = keys.length > 0 ? Math.max(...keys) + 1 : 0;
+
 	return `id-${maxKey}`;
 }
 
