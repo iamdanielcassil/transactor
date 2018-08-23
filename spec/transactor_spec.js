@@ -157,14 +157,21 @@ describe('transactor', () => {
 
 		describe('async', () => {
 			let a = { work: undefined };
-			let work;
+			let workTime = 1;
+			
 
 			beforeEach(() => {
-				a.work = Promise.resolve();
-				spyOn(a, 'work');
+				a.work = () => {
+					
+				};
+				spyOn(a, 'work').and.returnValue(Promise.resolve());
 			});
 
 			describe('saveEach', () => {
+				let startTime;
+				beforeEach(() => {
+					startTime = new Date().getTime();
+				});
 				it('should call work for each transaction', (done) => {
 					transactionInstance.add(1, mockItem);
 					transactionInstance.add(2, mockItem);
@@ -173,7 +180,25 @@ describe('transactor', () => {
 						done();
 					});
 				});
+
+				it('should call work syncronusly for each transaction', (done) => {
+					workTime = 10;
+					transactionInstance.add(1, mockItem);
+					transactionInstance.add(2, mockItem);
+					transactionInstance.add(3, mockItem);
+					transactionInstance.saveEach(() => {
+						return new Promise((resolve, reject) => {
+							setTimeout(() => {
+								resolve()
+							}, workTime)
+					})}, true).then(() => {
+						expect(new Date().getTime() - startTime).toBeGreaterThan(30);
+						expect(new Date().getTime() - startTime).not.toBeGreaterThan(50);
+						done();
+					});
+				});
 			});
+			
 
 			describe('save', () => {
 				it('should call work one time with array of transactions', (done) => {
@@ -205,15 +230,5 @@ describe('transactor', () => {
 
 	// 	});
 	// 	describe('get', () => {
-
-	// 	});
-	// 	describe('async', () => {
-	// 		describe('saveEach', (done) => {
-
-	// 		});
-	// 		describe('save', (done) => {
-
-	// 		})
-	// 	});
 	// });
 });

@@ -5,11 +5,23 @@ let maxKey = 0;
 let get;
 let set;
 
+/**
+ * init
+ * @param {function} dataGet define a getter function for a custom data storage solution
+ * @param {function} dataSet define a setter function for a custom data storage solution
+ */
 let init = function init(dataGet, dataSet) {
+	if (get !== undefined) {
+		console.log('transactor should only be initted once');
+	}
 	get = dataGet || defaultGet;
 	set = dataSet || defaultSet;
 }
 
+/**
+ * Create a new instance of transactor.
+ * @param {Object} options 
+ */
 let create = function create(options) {
 	if (get === undefined) {
 		module.exports.init();
@@ -63,7 +75,7 @@ class Transactor {
 	}
 
 	asyncAdd(id, data, options = { save: true }) {
-		return asyncWork(() => {
+		return syncAsyncWork(() => {
 			this._add(id, data, options);
 			this._revertedTransactions = [];
 		})
@@ -144,18 +156,25 @@ class Transactor {
 	 * @param {Function} work Function called for each transaction.  expects work to return a promise.
 	 * @returns Promise
 	 */
-	saveEach(work) {
+	saveEach(work, sync = false) {
 		let transactions = this._get();
 		let promises = [];
 	
 		transactions.forEach(transaction => {
 			if (transaction.options.save) {
-				promises.push(work(transaction.data));
+				if (sync) {
+					promises.push(syncAsyncWork(work, transaction.data))
+				} else {
+					promises.push(work(transaction.data));
+				}
+				
 			}
 		});
 	
 		return Promise.all(promises);
 	}
+
+	
 
 	/**
 	 * calls work function one time with array of transactions
@@ -234,15 +253,20 @@ class Transactor {
 	}
 }
 
-function asyncWork(worker) {
-	let nextWorking = new Promise(resolve, reject, () => {
+let working = Promise.resolve();
+
+function syncAsyncWork(worker, payload) {
+	let nextWorking = new Promise((resolve, reject) => {
 		working.then(() => {
-			resolve(worker());
+			worker(payload).then(() => {
+				resolve();
+			})
+			
 		})
 	});
-	working = nextWorkin;
+	working = nextWorking;
 
-	return nextWorkin;
+	return nextWorking;
 }
 
 /**
