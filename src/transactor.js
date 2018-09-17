@@ -11,9 +11,6 @@ let set;
  * @param {function} dataSet define a setter function for a custom data storage solution
  */
 let init = function init(dataGet, dataSet) {
-	if (get !== undefined) {
-		console.log('transactor should only be initted once');
-	}
 	get = dataGet || defaultGet;
 	set = dataSet || defaultSet;
 }
@@ -78,6 +75,7 @@ class Transactor {
 		return syncAsyncWork(() => {
 			this._add(id, data, options);
 			this._revertedTransactions = [];
+			return Promise.resolve();
 		})
 	}
 
@@ -85,7 +83,7 @@ class Transactor {
 	 * Undo up to and including the last save transaction
 	 */
 	back() {
-		let transactions = this._get(); //.sort((a, b) => a._tstamp - b._tstamp);
+		let transactions = this._get();
 		let isLookingForLastSavedIndex = true;
 		let hasSaveableTransaction = transactions.some(t => t.options.save);
 		let theseReversions = [];
@@ -222,13 +220,14 @@ class Transactor {
 	 */
 	_add(id, data, options) {
 		let transactionData = this._get();
-		let thisTransactionIndex = transactionData.findIndex(t => t.id === id);
+		let thisId = this.options.forceUniqueIds ? this._getUniqueId(id) : id;
 		let thisTransaction = {
-			id: this.options.forceUniqueIds ? this._getUniqueId(id) : id,
+			id: thisId,
 			data,
 			options,
-			_tstamp: new Date().getTime(),
 		};
+		let thisTransactionIndex = transactionData.findIndex(t => t.id === thisId);
+		
 
 		if (thisTransactionIndex === -1) {
 			transactionData.push(thisTransaction);
@@ -248,7 +247,7 @@ class Transactor {
 		if (existingIdIndex === -1) {
 			return id;
 		} else {
-			return id + existingIdIndex;
+			return id + existingIdIndex + 1;
 		}
 	}
 }
@@ -274,11 +273,9 @@ function syncAsyncWork(worker, payload) {
  * @param {Object} transactionData 
  */
 function getNextKey(transactionData) {
-	let keys = Object.keys(transactionData).map(k => k.replace('id-', '') * 1);
-
-	keys.push(maxKey);
-	maxKey = keys.length > 1 ? Math.max(...keys) + 1 : 0;
-	return `id-${maxKey}`;
+	let keys = Object.keys(transactionData);
+	
+	return keys.length > 0 ? Math.max(...keys) + 1 : 0;
 }
 
 module.exports = {
