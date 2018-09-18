@@ -50,7 +50,7 @@ function defaultSet(value) {
  * @param {Object} options
  */
 class Transactor {
-	constructor(options = { saveAsSequence: false, forceUniqueIds: false }) {
+	constructor(options = { saveAsSequence: false }) {
 		let transactionData = get() || [];
 		
 		this.key = getNextKey(transactionData);
@@ -83,6 +83,10 @@ class Transactor {
 	 * Undo up to and including the last save transaction
 	 */
 	back() {
+		if (!this.options.saveAsSequence) {
+			throw new Error('Instance must be created with saveAsSequence = true for back() to be used')
+		}
+
 		let transactions = this._get();
 		let isLookingForLastSavedIndex = true;
 		let hasSaveableTransaction = transactions.some(t => t.options.save);
@@ -105,6 +109,10 @@ class Transactor {
 	 * Redo up to and including the last undone save transaction
 	 */
 	forward() {
+		if (!this.options.saveAsSequence) {
+			throw new Error('Instance must be created with saveAsSequence = true for forward() to be used')
+		}
+		
 		let transactions = this._get();
 		let isLookingForLastSavedIndex = true;
 		let hasSaveableTransaction = this._revertedTransactions.some(t => t.options.save);
@@ -199,7 +207,7 @@ class Transactor {
 	 * Intenral get transactions for this instance
 	 */
 	_get() {
-		return get()[this.key] || [];
+		return get()[this.key];
 	}
 
 	/**
@@ -220,13 +228,13 @@ class Transactor {
 	 */
 	_add(id, data, options) {
 		let transactionData = this._get();
-		let thisId = this.options.forceUniqueIds ? this._getUniqueId(id) : id;
+		let thisId = this.options.saveAsSequence ? this._getUniqueId(id) : id;
 		let thisTransaction = {
 			id: thisId,
 			data,
 			options,
 		};
-		let thisTransactionIndex = transactionData.findIndex(t => t.id === thisId);
+		let thisTransactionIndex = transactionData.findIndex(t => t.id === id);
 		
 
 		if (thisTransactionIndex === -1) {
@@ -242,12 +250,12 @@ class Transactor {
 	}
 
 	_getUniqueId(id) {
-		let existingIdIndex = this._get().findIndex(t => t.id === id);
+		let existingIds = this._get().map(t => t.id);
 		
-		if (existingIdIndex === -1) {
+		if (existingIds.length === 0) {
 			return id;
 		} else {
-			return id + existingIdIndex + 1;
+			return Math.max(...existingIds) + 1;
 		}
 	}
 }
