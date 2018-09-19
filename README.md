@@ -64,7 +64,10 @@ is seen as 3 pieces of data, each with one transaction.
 
 #### save data -- all save functions expect work to return a promise, and return a promise.all that resolves when all work promsies resolve
 ```javascript
-let saveFunction = console.log;
+let saveFunction = (data) => {
+  console.log(data);
+  return Promise.resolve();
+}
 
 transactor.save(saveFunction)
 ```
