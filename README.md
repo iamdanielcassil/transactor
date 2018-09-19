@@ -42,30 +42,33 @@ let data = transaction.getLatest();
 [
   {id, value: 'test change three'},
 ]
+```
+getLatest uses the id param (first param given to add(id, data)) to group data.
 
-// getLatest uses the id param to group data.
-// for example
-
+for example
+```javascript
 transactor.add(1, {id: 1, value: 'test'});
 transactor.add(1, {id: 2, value: 'test change'});
 transactor.add(1, {id: 3, value: 'test change three'});
+```
+these are seen by transactor as a single piece of data with multiple transactions.
 
-// these are seen by transactor as a single piece of data with multiple transactions.
-// while this.
-
+while this.
+```javascript
 transactor.add(1, {id: 1, value: 'test'});
 transactor.add(2, {id: 1, value: 'test change'});
 transactor.add(3, {id: 1, value: 'test change three'});
-
-is seen as 3 pieces of data, each with one transaction.
 ```
+is seen as 3 pieces of data, each with one transaction.
+
 #### save data -- all save functions expect work to return a promise, and return a promise.all that resolves when all work promsies resolve
 ```javascript
 let saveFunction = console.log;
 
 transactor.save(saveFunction)
-
-// this will call console.log one time with an array of data to save.
+```
+this will call console.log one time with an array of data to save.
+```javascript
 [
   {id: 1, value: 'test'},
   {id: 1, value: 'test change'},
