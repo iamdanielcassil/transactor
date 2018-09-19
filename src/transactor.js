@@ -50,7 +50,7 @@ function defaultSet(value) {
  * @param {Object} options
  */
 class Transactor {
-	constructor(options = { saveAsSequence: false }) {
+	constructor(options = { saveAsSequence: true }) {
 		let transactionData = get() || [];
 
 		this.key = getNextKey(transactionData);
@@ -157,6 +157,27 @@ class Transactor {
 		return this._get().map(t => t.data);
 	}
 
+	_getLatest() {
+		let transactions = this._get();
+		let latest = [];
+
+		transactions.forEach(t => {
+			let index = latest.findIndex(l => l.id === t.id);
+
+			if (index === -1) {
+				latest.push(t);
+			} else {
+				latest[index] = t;
+			}
+		});
+
+		return latest;
+	}
+
+	getLatest() {
+		return this._getLatest().map(l => l.data);
+	}
+
 	/**
 	 * call work function for each transaction.
 	 * @param {Function} work Function called for each transaction.  expects work to return a promise.
@@ -187,6 +208,17 @@ class Transactor {
 	 */
 	save(work) {
 		let transactions = this._get();
+
+		return this._save(transactions, work);
+	}
+
+	saveLatestEdge(work) {
+		let transactions = this._getLatest();
+
+		return this._save(transactions, work);
+	}
+
+	_save(transactions, work) {
 		let dataToSave = transactions.filter(transaction => {
 			return transaction.options.save;
 		}).map(transaction => {
@@ -265,13 +297,14 @@ class Transactor {
 	 */
 	_add(id, data, options) {
 		let transactionData = this._get();
-		let thisId = this.options.saveAsSequence ? this._getUniqueId(id) : id;
+		let _id = this.options.saveAsSequence ? this._getUniqueId(id) : id;
 		let thisTransaction = {
-			id: thisId,
+			id,
 			data,
 			options,
+			_id,
 		};
-		let thisTransactionIndex = transactionData.findIndex(t => t.id === id);
+		let thisTransactionIndex = transactionData.findIndex(t => t._id === _id);
 		
 
 		if (thisTransactionIndex === -1) {
@@ -287,7 +320,7 @@ class Transactor {
 	}
 
 	_getUniqueId(id) {
-		let existingIds = this._get().map(t => t.id);
+		let existingIds = this._get().map(t => t._id);
 		
 		if (existingIds.length === 0) {
 			return id;

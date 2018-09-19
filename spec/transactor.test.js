@@ -98,45 +98,48 @@ describe('after init', () => {
 				store = {};
 				transactionInstance = transactor.create();
 			});
-			describe('saveAsSequence = true', () => {
-				test('should create unique id for each add', () => {
+			describe('saveAsSequence = false', () => {
+				beforeEach(() => {
 					store = {};
-					transactionInstance = transactor.create({ saveAsSequence: true });
+					transactionInstance = transactor.create({ saveAsSequence: false });
+				});
+				test('should add a new transaction to this transactor instance', () => {
+					transactionInstance.add(1, mockItem);
+		
+					expect(store['0'].length).toEqual(1);
+					expect(store['0'][0].data).toEqual(mockItem);
+				});
+		
+				test('should update existing transaction with the same key', () => {
+					transactionInstance.add(1, mockItem);
+					transactionInstance.add(1, { isUpdated: true });
+		
+					expect(store['0'].length).toBe(1);
+					expect(store['0'][0].data.isUpdated).toBeTruthy();
+				});
+			})
+			
+	
+			describe('saveAsSequence = true', () => {
+				beforeEach(() => {
+					store = {}
+					transactionInstance = transactor.create();
+				});
+
+				test('should create unique id for each add', () => {
 					transactionInstance.add(1, mockItem);
 					transactionInstance.add(1, mockItem);
 		
 					expect(store['0'][0].id).toBe(1);
 					expect(store['0'][1].id).toBe(2);
 				})
-			})
-			test('should add a new transaction to this transactor instance', () => {
-				transactionInstance.add(1, mockItem);
-	
-				expect(store['0'].length).toEqual(1);
-				expect(store['0'][0].data).toEqual(mockItem);
-			});
-	
-			test('should update existing transaction with the same key', () => {
-				transactionInstance.add(1, mockItem);
-				transactionInstance.add(1, { isUpdated: true });
-	
-				expect(store['0'].length).toBe(1);
-				expect(store['0'][0].data.isUpdated).toBeTruthy();
-			});
-	
-			describe('saveAsSequence = true', () => {
-				beforeEach(() => {
-					store = {}
-					transactionInstance = transactor.create({ saveAsSequence: true });
-				});
 	
 				test('should add a new transaction with existing key if this.saveAsSequence is true', () => {
-					transactionInstance = transactor.create({ saveAsSequence: true });
 					transactionInstance.add(1, mockItem);
 					transactionInstance.add(1, { isNew: true });
 		
-					expect(store['1'].length).toBe(2);
-					expect(store['1'][1].data.isNew).toBeTruthy();
+					expect(store['0'].length).toBe(2);
+					expect(store['0'][1].data.isNew).toBeTruthy();
 				});
 			})
 	
@@ -191,7 +194,7 @@ describe('after init', () => {
 		describe('back', () => {
 			describe('saveAsSequence = false', () => {
 				test('back should throw error if saveAsSequence is false', () => {
-					transactionInstance = transactor.create();
+					transactionInstance = transactor.create({ saveAsSequence: false });
 					transactionInstance.add(1, mockItem);
 					expect(() => {
 						transactionInstance.back()
@@ -200,7 +203,7 @@ describe('after init', () => {
 			});
 			describe('saveAsSequence = true', () => {
 				beforeEach(() => {
-					transactionInstance = transactor.create({saveAsSequence: true});
+					transactionInstance = transactor.create();
 				});
 	
 				test('should not revert if no previous save transaction', () => {
@@ -230,7 +233,7 @@ describe('after init', () => {
 		describe('forward', () => {
 			describe('saveAsSequence = false', () => {
 				test('forward should throw error if saveAsSequence is false', () => {
-					transactionInstance = transactor.create({saveAsSequence: false});
+					transactionInstance = transactor.create({ saveAsSequence: false });
 					transactionInstance.add(1, mockItem);
 					expect(() => {
 						transactionInstance.forward()
@@ -240,7 +243,7 @@ describe('after init', () => {
 	
 			describe('saveAsSequence = true', () => {
 				beforeEach(() => {
-					transactionInstance = transactor.create({saveAsSequence: true});
+					transactionInstance = transactor.create();
 				});
 	
 				test('should revert last reversion', () => {
@@ -284,7 +287,7 @@ describe('after init', () => {
 			});
 	
 			test('should not clear transactions for a different instance', () => {
-				let instanceTwo = transactor.create({ saveAsSequence: true });
+				let instanceTwo = transactor.create();
 	
 				instanceTwo.add(1, mockItem);
 				transactionInstance.add(1, mockItem);
@@ -326,6 +329,11 @@ describe('after init', () => {
 			});
 	
 			describe('add', () => {
+				beforeEach(() => {
+					store = {};
+					transactionInstance = transactor.create();
+				});
+
 				test('should add a new transaction to this transactor instance', (done) => {
 					transactionInstance.asyncAdd(1, mockItem).then(() => {
 						expect(store['0'].length).toEqual(1);
@@ -334,21 +342,21 @@ describe('after init', () => {
 					});
 				});
 	
-				test('should update existing transaction with the same key', (done) => {
+				test('should update existing transaction with the same key if saveAsSequence = false', (done) => {
+					transactionInstance = transactor.create({ saveAsSequence: false });
 					transactionInstance.asyncAdd(1, mockItem);
 					transactionInstance.asyncAdd(1, { isUpdated: true }).then(() => {
-						expect(store['0'].length).toBe(1);
-						expect(store['0'][0].data.isUpdated).toBeTruthy();
+						expect(store['1'].length).toBe(1);
+						expect(store['1'][0].data.isUpdated).toBeTruthy();
 						done();
 					});
 				});
 	
 				test('should add a new transaction with existing key if this.saveAsSequence is true', (done) => {
-					transactionInstance = transactor.create({ saveAsSequence: true });
 					transactionInstance.asyncAdd(1, mockItem);
 					transactionInstance.asyncAdd(1, { isNew: true }).then(() => {
-						expect(store['1'].length).toBe(2);
-						expect(store['1'][1].data.isNew).toBeTruthy();
+						expect(store['0'].length).toBe(2);
+						expect(store['0'][1].data.isNew).toBeTruthy();
 						done();
 					});
 				});
