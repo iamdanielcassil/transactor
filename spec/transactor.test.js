@@ -105,7 +105,6 @@ describe('after init', () => {
 					transactionInstance.add(1, mockItem);
 					transactionInstance.add(1, mockItem);
 		
-					console.log(store);
 					expect(store['0'][0].id).toBe(1);
 					expect(store['0'][1].id).toBe(2);
 				})
@@ -160,6 +159,32 @@ describe('after init', () => {
 	
 				transactionInstance.add(1, mockItem, options);
 				expect(store['0'][0].options).toEqual(options);
+			});
+		});
+
+		describe('async', () => {
+			describe('save', () => {
+				test('should call work and return promise', (done) => {
+					transactionInstance.add(1, mockItem);
+					transactionInstance.saveAsync(() => Promise.resolve()).then(() => {
+						expect(true).toBeTruthy();
+						done();
+					});
+				});
+			});
+
+			describe('saveEach', () => {
+				test('should call work once for each saveable transaction and return promise', (done) => {
+					let mockWork = jest.fn().mockImplementation(() => Promise.resolve());
+
+					transactionInstance.add(1, mockItem);
+					transactionInstance.add(2, mockItem);
+
+					transactionInstance.saveEachAsync(mockWork).then(() => {
+						expect(mockWork).toBeCalledTimes(2)
+						done();
+					});
+				});
 			});
 		});
 	

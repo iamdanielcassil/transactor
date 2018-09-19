@@ -5,6 +5,7 @@
   "main": "src/transactor.js",
   "scripts": {
     "test": "jest",
+    "test:coverage": "jest --coverage",
     "test:watch": "jest --watch"
   },
   "repository": {
@@ -19,7 +20,7 @@
     "sequence"
   ],
   "author": "daniel cassil",
-  "license": "ISC",
+  "license": "BSD-3-Clause",
   "bugs": {
     "url": "https://github.com/iamdanielcassil/transactor/issues"
   },

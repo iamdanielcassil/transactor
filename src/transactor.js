@@ -52,7 +52,7 @@ function defaultSet(value) {
 class Transactor {
 	constructor(options = { saveAsSequence: false }) {
 		let transactionData = get() || [];
-		
+
 		this.key = getNextKey(transactionData);
 		this._revertedTransactions = [];
 		this.options = options;
@@ -180,8 +180,6 @@ class Transactor {
 		return Promise.all(promises);
 	}
 
-	
-
 	/**
 	 * calls work function one time with array of transactions
 	 * @param {Function} work Function called for each transaction.  expects work to return a promise.
@@ -201,6 +199,45 @@ class Transactor {
 		} else {
 			return Promise.resolve();
 		}
+	}
+
+	/**
+	 * calls work function one time with array of transactions
+	 * @param {Function} work Function called for each transaction.  expects work to return a promise.
+	 * @returns Promise
+	 */
+	saveAsync(work, ...args) {
+		let transactions = this._get();
+		let dataToSave = transactions.filter(transaction => {
+			return transaction.options.save;
+		}).map(transaction => {
+			return transaction.data;
+		});
+	
+		// only call work when we have transactions
+		if (dataToSave.length > 0) {
+			return work(dataToSave, ...args);
+		}
+	
+		return Promise.resolve();
+	}
+
+	/**
+	 * call work function for each transaction.
+	 * @param {Function} work Function called for each transaction.  expects work to return a promise.
+	 * @returns Promise
+	 */
+	saveEachAsync(work, ...args) {
+		let transactions = this._get();
+		let promises = [];
+	
+		transactions.forEach(transaction => {
+			if (transaction.options.save) {
+				promises.push(work(transaction.data, ...args));
+			}
+		});
+	
+		return Promise.all(promises);
 	}
 
 	/**
