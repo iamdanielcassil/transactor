@@ -89,6 +89,22 @@ transactor.saveEdge(saveFunction)
   {id: 1, value: 'test change two'},
 ]
 ```
+
+### saveEach - call work one time for each piece of data
+```javascript
+transactor.saveEach(saveFunction)
+```
+this will call console.log one time for each piece of data to save.
+```javascript
+  // call one
+  {id: 1, value: 'test'},
+  //call two
+  {id: 1, value: 'test change'},
+  // call three
+  {id: 1, value: 'test change two'},
+```
+#### saveEachLatest comming soon.
+
 ### Overview!
 
 Transactor creates and manages client side transactions, allowing you to then opperate on them individualy or as a whole.  For example, you could create a transaction for adding several new users to a form, then save them all at once.  Additionaly, Transactor gives access to the transactions and provides methods to super impose the transactions on an existing data set, it allows undo and redo features, and can differntiate between saveable and non saveable transactions.  Lastly each instantiation of Transactor keys its transactions uniquely, meaning you can have multiple transctor instance at once.
