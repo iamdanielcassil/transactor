@@ -5,8 +5,9 @@ Transactor is a simple library that helps to keep track of local transactional c
 ### Start Here
 
 #### install
+```javascript
 npm i --save sequence-transactor
-
+```
 #### include transactor in your project
 ```javascript
 import sequenceTransactor from 'sequence-transactor'
