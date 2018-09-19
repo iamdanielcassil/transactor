@@ -62,6 +62,41 @@ transactor.add(3, {id: 1, value: 'test change three'});
 ```
 is seen as 3 pieces of data, each with one transaction.
 
+#### back() and Forward()
+ These let you navigate backwards and forwards in time through your transactions.
+ - Only works with saveAsSequence (default option) on creare();
+
+ ```javascript
+ transactor.back();
+ transactor.get();
+
+ // returns
+ [
+  {id, value: 'test'},
+  {id, value: 'test change'},
+ ]
+
+ transactor.back();
+ transactor.get();
+ 
+ // returns
+ [
+  {id, value: 'test'},
+ ]
+
+ transactor.forward();
+ transactor.get();
+ 
+ // returns
+ [
+  {id, value: 'test'},
+  {id, value: 'test change'},
+ ]
+
+```
+Transactor also has the concept of saveable transactions and non-saveable transactions.  
+It is noted here because back() will go back up to and including the last saveable transaction.  The same is true of forward().  The reason for this will e discussed in detail further on.
+
 #### save data -- all save functions expect work to return a promise, and return a promise.all that resolves when all work promsies resolve
 ```javascript
 let saveFunction = (data) => {
@@ -103,6 +138,13 @@ this will call console.log one time for each piece of data to save.
   // call three
   {id: 1, value: 'test change two'},
 ```
+#### saveable vs non-saveable transactions
+depnding on what type of data and why you are making transactions, you may need to create client side only transactions.  
+
+This feature was purpose built for the case where a server manipulates data on save, and the client needs to mimic that behavior.  For example saving data A, causes an update to data B done by the server on save.  If you need to represent that state on the client prior to save, you would need to make a non-saveable transaction to data B to mimic the server.
+
+Yes that is dumb, but when you do not have control of the server... what can you do.
+
 #### saveEachLatest comming soon.
 
 ### Overview!
