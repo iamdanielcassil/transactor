@@ -15,6 +15,10 @@ npm i --save sequence-transactor
 ```javascript
 import sequenceTransactor from 'sequence-transactor'
 ```
+
+#### Very basic example site 
+https://iamdanielcassil.github.io/web/
+
 #### use it
 ```javascript
 let transactor = sequenceTransactor.create();
