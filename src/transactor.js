@@ -50,7 +50,7 @@ function defaultSet(value) {
  * @param {Object} options
  */
 class Transactor {
-	constructor(options = { saveAsSequence: true }) {
+	constructor(options) {
 		let transactionData = get() || [];
 
 		this.key = getNextKey(transactionData);
@@ -71,6 +71,12 @@ class Transactor {
 		this._revertedTransactions = [];
 	}
 
+	/**
+	 * can be called async, but will ensure adds are processed in the order they are created.
+	 * @param {Number} id 
+	 * @param {*} data 
+	 * @param {Object} options 
+	 */
 	asyncAdd(id, data, options = { save: true }) {
 		return syncAsyncWork(() => {
 			this._add(id, data, options);
@@ -83,10 +89,6 @@ class Transactor {
 	 * Undo up to and including the last save transaction
 	 */
 	back() {
-		if (!this.options.saveAsSequence) {
-			throw new Error('Instance must be created with saveAsSequence = true for back() to be used')
-		}
-
 		let transactions = this._get();
 		let isLookingForLastSavedIndex = true;
 		let hasSaveableTransaction = transactions.some(t => t.options.save);
@@ -108,11 +110,7 @@ class Transactor {
 	/**
 	 * Redo up to and including the last undone save transaction
 	 */
-	forward() {
-		if (!this.options.saveAsSequence) {
-			throw new Error('Instance must be created with saveAsSequence = true for forward() to be used')
-		}
-		
+	forward() {	
 		let transactions = this._get();
 		let isLookingForLastSavedIndex = true;
 		let hasSaveableTransaction = this._revertedTransactions.some(t => t.options.save);
@@ -157,29 +155,12 @@ class Transactor {
 		return this._get().map(t => t.data);
 	}
 
-	_getLatest() {
-		let transactions = this._get();
-		let latest = [];
-
-		transactions.forEach(t => {
-			let index = latest.findIndex(l => l.id === t.id);
-
-			if (index === -1) {
-				latest.push(t);
-			} else {
-				latest[index] = t;
-			}
-		});
-
-		return latest;
-	}
-
-	getLatest() {
+	getLatestEdge() {
 		return this._getLatest().map(l => l.data);
 	}
 
 	/**
-	 * call work function for each transaction.
+	 * Convience function - calls work function for each transaction.
 	 * @param {Function} work Function called for each transaction.  expects work to return a promise.
 	 * @returns Promise
 	 */
@@ -212,12 +193,89 @@ class Transactor {
 		return this._save(transactions, work);
 	}
 
+	/**
+	 * calls work function with array of transactions - if multiple transactions exist for a single ID it choses the latest one
+	 * @param {Function} work 
+	 */
 	saveLatestEdge(work) {
 		let transactions = this._getLatest();
 
 		return this._save(transactions, work);
 	}
 
+	/**
+	 * Internal add transaction to instance store
+	 * @param {String} id 
+	 * @param {Object} data 
+	 * @param {Object} options 
+	 */
+	_add(id, data, options) {
+		let transactionData = this._get();
+		let _id = this._getUniqueId(id);
+		let thisTransaction = {
+			id,
+			data,
+			options,
+			_id,
+		};
+		let thisTransactionIndex = transactionData.findIndex(t => t._id === _id);
+
+		if (thisTransactionIndex === -1) {
+			transactionData.push(thisTransaction);
+		} else {
+			// This creates new transactions for each change.  If we are not saving this transaction, we do not need to worry about creating a unique one, we should update the old.
+			transactionData.push(thisTransaction);
+		}
+
+		this._set(transactionData);
+	}
+
+	/**
+	 * Intenral get transactions for this instance
+	 */
+	_get() {
+		return get()[this.key];
+	}
+
+	/**
+	 * Internal get transactions choising the last for each unique id
+	 */
+	_getLatest() {
+		let transactions = this._get();
+		let latest = [];
+
+		transactions.forEach(t => {
+			let index = latest.findIndex(l => l.id === t.id);
+
+			if (index === -1) {
+				latest.push(t);
+			} else {
+				latest[index] = t;
+			}
+		});
+
+		return latest;
+	}
+
+	/**
+	 * get the next unique id
+	 * @param {number} id 
+	 */
+	_getUniqueId(id) {
+		let existingIds = this._get().map(t => t._id);
+		
+		if (existingIds.length === 0) {
+			return id;
+		} else {
+			return Math.max(...existingIds) + 1;
+		}
+	}
+
+	/**
+	 * Call work function with array of transactions
+	 * @param {Array} transactions 
+	 * @param {Function} work 
+	 */
 	_save(transactions, work) {
 		let dataToSave = transactions.filter(transaction => {
 			return transaction.options.save;
@@ -233,51 +291,6 @@ class Transactor {
 		}
 	}
 
-	/**
-	 * calls work function one time with array of transactions
-	 * @param {Function} work Function called for each transaction.  expects work to return a promise.
-	 * @returns Promise
-	 */
-	saveAsync(work, ...args) {
-		let transactions = this._get();
-		let dataToSave = transactions.filter(transaction => {
-			return transaction.options.save;
-		}).map(transaction => {
-			return transaction.data;
-		});
-	
-		// only call work when we have transactions
-		if (dataToSave.length > 0) {
-			return work(dataToSave, ...args);
-		}
-	
-		return Promise.resolve();
-	}
-
-	/**
-	 * call work function for each transaction.
-	 * @param {Function} work Function called for each transaction.  expects work to return a promise.
-	 * @returns Promise
-	 */
-	saveEachAsync(work, ...args) {
-		let transactions = this._get();
-		let promises = [];
-	
-		transactions.forEach(transaction => {
-			if (transaction.options.save) {
-				promises.push(work(transaction.data, ...args));
-			}
-		});
-	
-		return Promise.all(promises);
-	}
-
-	/**
-	 * Intenral get transactions for this instance
-	 */
-	_get() {
-		return get()[this.key];
-	}
 
 	/**
 	 * Intenral set transactions for this instance
@@ -289,45 +302,7 @@ class Transactor {
 		set(transactions);
 	}
 
-	/**
-	 * Internal add transaction to instance store
-	 * @param {String} id 
-	 * @param {Object} data 
-	 * @param {Object} options 
-	 */
-	_add(id, data, options) {
-		let transactionData = this._get();
-		let _id = this.options.saveAsSequence ? this._getUniqueId(id) : id;
-		let thisTransaction = {
-			id,
-			data,
-			options,
-			_id,
-		};
-		let thisTransactionIndex = transactionData.findIndex(t => t._id === _id);
-		
-
-		if (thisTransactionIndex === -1) {
-			transactionData.push(thisTransaction);
-		} else if (this.options.saveAsSequence) {
-			// This creates new transactions for each change.  If we are not saving this transaction, we do not need to worry about creating a unique one, we should update the old.
-			transactionData.push(thisTransaction);
-		} else {
-			transactionData[thisTransactionIndex] = thisTransaction;
-		}
-
-		this._set(transactionData);
-	}
-
-	_getUniqueId(id) {
-		let existingIds = this._get().map(t => t._id);
-		
-		if (existingIds.length === 0) {
-			return id;
-		} else {
-			return Math.max(...existingIds) + 1;
-		}
-	}
+	
 }
 
 let working = Promise.resolve();

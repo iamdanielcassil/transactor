@@ -11,8 +11,6 @@ test('create should call init if it was not already called', () => {
 	let spy = jest.spyOn(transactor, 'init');
 
 	transactionInstance = transactor.create();
-	transactionInstance.add(1, mockItem);
-
 	expect(spy).toBeCalled();
 });
 
@@ -41,7 +39,7 @@ describe('after init', () => {
 		getStub.mockRestore();
 	});
 	
-	test('init should not fail if getter returns undefined', () => {
+	test('init should not fail if getter returns undefined at create', () => {
 		let getStub = jest.fn().mockImplementation(() => undefined);
 	
 		transactor.init(getStub, set);
@@ -51,7 +49,7 @@ describe('after init', () => {
 		getStub.mockRestore();
 	});
 	
-	test('init should call setTub', () => {
+	test('init should call setStub', () => {
 		let setStub = jest.fn().mockImplementation(set);
 	
 		transactor.init(get, setStub);
@@ -75,7 +73,7 @@ describe('after init', () => {
 			expect(transactionInstance.options).toEqual(options);
 		});
 		
-		test('should set key to a unique key', () => {
+		test('should set key to a unique key for each instance', () => {
 			let instance1 = transactor.create();
 			let instance2 = transactor.create();
 		
@@ -98,57 +96,21 @@ describe('after init', () => {
 				store = {};
 				transactionInstance = transactor.create();
 			});
-			describe('saveAsSequence = false', () => {
-				beforeEach(() => {
-					store = {};
-					transactionInstance = transactor.create({ saveAsSequence: false });
-				});
-				test('should add a new transaction to this transactor instance', () => {
-					transactionInstance.add(1, mockItem);
-		
-					expect(store['0'].length).toEqual(1);
-					expect(store['0'][0].data).toEqual(mockItem);
-				});
-		
-				test('should update existing transaction with the same key', () => {
-					transactionInstance.add(1, mockItem);
-					transactionInstance.add(1, { isUpdated: true });
-		
-					expect(store['0'].length).toBe(1);
-					expect(store['0'][0].data.isUpdated).toBeTruthy();
-				});
-			})
-			
 	
-			describe('saveAsSequence = true', () => {
-				beforeEach(() => {
-					store = {}
-					transactionInstance = transactor.create();
-				});
-
-				test('should create unique id for each add', () => {
-					transactionInstance.add(1, mockItem);
-					transactionInstance.add(1, mockItem);
-		
-					expect(store['0'][0].id).toBe(1);
-					expect(store['0'][1].id).toBe(2);
-				})
-	
-				test('should add a new transaction with existing key if this.saveAsSequence is true', () => {
-					transactionInstance.add(1, mockItem);
-					transactionInstance.add(1, { isNew: true });
-		
-					expect(store['0'].length).toBe(2);
-					expect(store['0'][1].data.isNew).toBeTruthy();
-				});
-			})
-	
-			test('should add a new transaction with the new key', () => {
+			test('should create unique id for each add', () => {
 				transactionInstance.add(1, mockItem);
-				transactionInstance.add(2, { isNew: true });
+				transactionInstance.add(1, mockItem);
 	
-				expect(store['0'].length).toEqual(2);
-				expect(store['0'][1].data.isNew).toBeTruthy();
+				expect(store['0'][0]._id).toBe(1);
+				expect(store['0'][1]._id).toBe(2);
+			})
+
+			test('should leave provided id unchanged', () => {
+				transactionInstance.add(1, mockItem);
+				transactionInstance.add(1, { isNew: true });
+	
+				expect(store['0'][0].id).toBe(1);
+				expect(store['0'][1].id).toBe(1);
 			});
 	
 			test('should default to save = true', () => {
@@ -164,117 +126,68 @@ describe('after init', () => {
 				expect(store['0'][0].options).toEqual(options);
 			});
 		});
-
-		describe('async', () => {
-			describe('save', () => {
-				test('should call work and return promise', (done) => {
-					transactionInstance.add(1, mockItem);
-					transactionInstance.saveAsync(() => Promise.resolve()).then(() => {
-						expect(true).toBeTruthy();
-						done();
-					});
-				});
-			});
-
-			describe('saveEach', () => {
-				test('should call work once for each saveable transaction and return promise', (done) => {
-					let mockWork = jest.fn().mockImplementation(() => Promise.resolve());
-
-					transactionInstance.add(1, mockItem);
-					transactionInstance.add(2, mockItem);
-
-					transactionInstance.saveEachAsync(mockWork).then(() => {
-						expect(mockWork).toBeCalledTimes(2)
-						done();
-					});
-				});
-			});
-		});
 	
 		describe('back', () => {
-			describe('saveAsSequence = false', () => {
-				test('back should throw error if saveAsSequence is false', () => {
-					transactionInstance = transactor.create({ saveAsSequence: false });
-					transactionInstance.add(1, mockItem);
-					expect(() => {
-						transactionInstance.back()
-					}).toThrowError();
-				});
+			beforeEach(() => {
+				transactionInstance = transactor.create();
 			});
-			describe('saveAsSequence = true', () => {
-				beforeEach(() => {
-					transactionInstance = transactor.create();
-				});
-	
-				test('should not revert if no previous save transaction', () => {
-					transactionInstance.add(1, mockItem, { save: false });
-					transactionInstance.add(1, {id: 1, value: 'test change'}, { save: false });
-	
-					expect(transactionInstance.get()[0].value).toBe('test');
-					expect(transactionInstance.get()[1].value).toBe('test change');
-					transactionInstance.back();
-					expect(transactionInstance.get()[0].value).toBe('test');
-					expect(transactionInstance.get()[1].value).toBe('test change');
-				});
-	
-				test('should revert to previous save transaction', () => {
-					transactionInstance.add(1, mockItem);
-					transactionInstance.add(1, {id: 1, value: 'test change'});
-	
-					expect(transactionInstance.get()[0].value).toBe('test');
-					expect(transactionInstance.get()[1].value).toBe('test change');
-					transactionInstance.back();
-					expect(transactionInstance.get()[0].value).toBe('test');
-					expect(transactionInstance.get()[1]).toBe(undefined);
-				});
+
+			test('should not revert if no previous save transaction', () => {
+				transactionInstance.add(1, mockItem, { save: false });
+				transactionInstance.add(1, {id: 1, value: 'test change'}, { save: false });
+
+				expect(transactionInstance.get()[0].value).toBe('test');
+				expect(transactionInstance.get()[1].value).toBe('test change');
+				transactionInstance.back();
+				expect(transactionInstance.get()[0].value).toBe('test');
+				expect(transactionInstance.get()[1].value).toBe('test change');
+			});
+
+			test('should revert to previous save transaction', () => {
+				transactionInstance.add(1, mockItem);
+				transactionInstance.add(1, {id: 1, value: 'test change'});
+
+				expect(transactionInstance.get()[0].value).toBe('test');
+				expect(transactionInstance.get()[1].value).toBe('test change');
+				transactionInstance.back();
+				expect(transactionInstance.get()[0].value).toBe('test');
+				expect(transactionInstance.get()[1]).toBe(undefined);
 			});
 		});
 	
 		describe('forward', () => {
-			describe('saveAsSequence = false', () => {
-				test('forward should throw error if saveAsSequence is false', () => {
-					transactionInstance = transactor.create({ saveAsSequence: false });
-					transactionInstance.add(1, mockItem);
-					expect(() => {
-						transactionInstance.forward()
-					}).toThrowError();
-				});
+			beforeEach(() => {
+				transactionInstance = transactor.create();
 			});
-	
-			describe('saveAsSequence = true', () => {
-				beforeEach(() => {
-					transactionInstance = transactor.create();
-				});
-	
-				test('should revert last reversion', () => {
-					transactionInstance.add(1, mockItem);
-					transactionInstance.add(1, {id: 1, value: 'test change'});
-	
-					expect(transactionInstance.get()[0].value).toBe('test');
-					expect(transactionInstance.get()[1].value).toBe('test change');
-					transactionInstance.back();
-					expect(transactionInstance.get()[0].value).toBe('test');
-					expect(transactionInstance.get()[1]).toBe(undefined);
-					transactionInstance.forward();
-					expect(transactionInstance.get()[0].value).toBe('test');
-					expect(transactionInstance.get()[1].value).toBe('test change');
-				});
-	
-				test('should not revert if no previous reversion', () => {
-					transactionInstance.add(1, mockItem, { save: false });
-					transactionInstance.add(1, {id: 1, value: 'test change'});
-					transactionInstance.add(1, {id: 1, value: 'test change 2'}, { save: false });
-	
-					expect(transactionInstance.get()[0].value).toBe('test');
-					expect(transactionInstance.get()[1].value).toBe('test change');
-					expect(transactionInstance.get()[2].value).toBe('test change 2');
-					transactionInstance.back();
-					expect(transactionInstance.get()[0].value).toBe('test');
-					transactionInstance.forward();
-					expect(transactionInstance.get()[0].value).toBe('test');
-					expect(transactionInstance.get()[1].value).toBe('test change');
-					expect(transactionInstance.get()[2].value).toBe('test change 2');
-				});
+
+			test('should revert last reversion', () => {
+				transactionInstance.add(1, mockItem);
+				transactionInstance.add(1, {id: 1, value: 'test change'});
+
+				expect(transactionInstance.get()[0].value).toBe('test');
+				expect(transactionInstance.get()[1].value).toBe('test change');
+				transactionInstance.back();
+				expect(transactionInstance.get()[0].value).toBe('test');
+				expect(transactionInstance.get()[1]).toBe(undefined);
+				transactionInstance.forward();
+				expect(transactionInstance.get()[0].value).toBe('test');
+				expect(transactionInstance.get()[1].value).toBe('test change');
+			});
+
+			test('should not revert if no previous reversion', () => {
+				transactionInstance.add(1, mockItem, { save: false });
+				transactionInstance.add(1, {id: 1, value: 'test change'});
+				transactionInstance.add(1, {id: 1, value: 'test change 2'}, { save: false });
+
+				expect(transactionInstance.get()[0].value).toBe('test');
+				expect(transactionInstance.get()[1].value).toBe('test change');
+				expect(transactionInstance.get()[2].value).toBe('test change 2');
+				transactionInstance.back();
+				expect(transactionInstance.get()[0].value).toBe('test');
+				transactionInstance.forward();
+				expect(transactionInstance.get()[0].value).toBe('test');
+				expect(transactionInstance.get()[1].value).toBe('test change');
+				expect(transactionInstance.get()[2].value).toBe('test change 2');
 			});
 		});
 	
@@ -318,118 +231,122 @@ describe('after init', () => {
 				expect(transactions[1]).toEqual(mockItem);
 			});
 		});
+
+		describe('getLatestEdge', () => {
+			test('should get latest edig transactions data', () => {
+				let change = {id: 3, value: 'change'};
+
+				transactionInstance.add(1, mockItem);
+				transactionInstance.add(1, change);
 	
-		describe('async', () => {
-			let a = { work: undefined };
-			let workTime = 1;
-			let mockWork;
+				let transactions = transactionInstance.getLatestEdge();
 	
+				expect(transactions[0]).toEqual(change);
+				expect(transactions[1]).toEqual(undefined);
+			});
+		});
+	
+		describe('asyncAdd', () => {
 			beforeEach(() => {
+				store = {};
+				transactionInstance = transactor.create();
+			});
+	
+			test('should add a new transaction to this transactor instance', (done) => {
+				transactionInstance.asyncAdd(1, mockItem).then(() => {
+					expect(store['0'].length).toEqual(1);
+					expect(store['0'][0].data).toEqual(mockItem);
+					done();
+				});
+			});
+
+			test('should add a new transaction with existing key', (done) => {
+				transactionInstance.asyncAdd(1, mockItem);
+				transactionInstance.asyncAdd(1, { isNew: true }).then(() => {
+					expect(store['0'].length).toBe(2);
+					expect(store['0'][1].data.isNew).toBeTruthy();
+					done();
+				});
+			});
+
+			test('should add a new transaction with the new key', (done) => {
+				transactionInstance.asyncAdd(1, mockItem);
+				transactionInstance.asyncAdd(2, { isNew: true }).then(() => {
+					expect(store['0'].length).toEqual(2);
+					expect(store['0'][1].data.isNew).toBeTruthy();
+					done();
+				});
+			});
+
+			test('should default to save = true', (done) => {
+				transactionInstance.asyncAdd(1, mockItem).then(() => {
+					expect(store['0'][0].options.save).toBeTruthy();
+					done();
+				});
+			});
+	
+			test('should override default options', (done) => {
+				let options = { test: 'test' };
+	
+				transactionInstance.asyncAdd(1, mockItem, options).then(() => {
+					expect(store['0'][0].options).toEqual(options);
+					done();
+				});
+			});
+		});
+	
+		describe('saveEach', () => {
+			let startTime;
+			let mockWork;
+			let workTime = 1;
+
+			beforeEach(() => {
+				startTime = new Date().getTime();
 				mockWork = jest.fn().mockReturnValue(Promise.resolve());
 			});
-	
-			describe('add', () => {
-				beforeEach(() => {
-					store = {};
-					transactionInstance = transactor.create();
-				});
 
-				test('should add a new transaction to this transactor instance', (done) => {
-					transactionInstance.asyncAdd(1, mockItem).then(() => {
-						expect(store['0'].length).toEqual(1);
-						expect(store['0'][0].data).toEqual(mockItem);
-						done();
-					});
-				});
-	
-				test('should update existing transaction with the same key if saveAsSequence = false', (done) => {
-					transactionInstance = transactor.create({ saveAsSequence: false });
-					transactionInstance.asyncAdd(1, mockItem);
-					transactionInstance.asyncAdd(1, { isUpdated: true }).then(() => {
-						expect(store['1'].length).toBe(1);
-						expect(store['1'][0].data.isUpdated).toBeTruthy();
-						done();
-					});
-				});
-	
-				test('should add a new transaction with existing key if this.saveAsSequence is true', (done) => {
-					transactionInstance.asyncAdd(1, mockItem);
-					transactionInstance.asyncAdd(1, { isNew: true }).then(() => {
-						expect(store['0'].length).toBe(2);
-						expect(store['0'][1].data.isNew).toBeTruthy();
-						done();
-					});
-				});
-	
-				test('should add a new transaction with the new key', (done) => {
-					transactionInstance.asyncAdd(1, mockItem);
-					transactionInstance.asyncAdd(2, { isNew: true }).then(() => {
-						expect(store['0'].length).toEqual(2);
-						expect(store['0'][1].data.isNew).toBeTruthy();
-						done();
-					});
-				});
-	
-				test('should default to save = true', (done) => {
-					transactionInstance.asyncAdd(1, mockItem).then(() => {
-						expect(store['0'][0].options.save).toBeTruthy();
-						done();
-					});
-				});
-		
-				test('should override default options', (done) => {
-					let options = { test: 'test' };
-		
-					transactionInstance.asyncAdd(1, mockItem, options).then(() => {
-						expect(store['0'][0].options).toEqual(options);
-						done();
-					});
+			test('should call work for each saveable transaction', (done) => {
+				transactionInstance.add(1, mockItem);
+				transactionInstance.add(2, mockItem);
+				transactionInstance.saveEach(mockWork).then(() => {
+					expect(mockWork.mock.calls.length).toBe(2);
+					done();
 				});
 			});
-	
-			describe('saveEach', () => {
-				let startTime;
-				beforeEach(() => {
-					startTime = new Date().getTime();
-				});
-				test('should call work for each saveable transaction', (done) => {
-					transactionInstance.add(1, mockItem);
-					transactionInstance.add(2, mockItem);
-					transactionInstance.saveEach(mockWork).then(() => {
-						expect(mockWork.mock.calls.length).toBe(2);
-						done();
-					});
-				});
-	
-				test('should ignore non saveable transaction', (done) => {
-					transactionInstance.add(1, mockItem, { save: false });
-					transactionInstance.add(2, mockItem);
-					transactionInstance.saveEach(mockWork).then(() => {
-						expect(mockWork.mock.calls.length).toBe(1);
-						done();
-					});
-				});
-	
-				test('should call work syncronusly for each transaction', (done) => {
-					workTime = 10;
-					transactionInstance.add(1, mockItem);
-					transactionInstance.add(2, mockItem);
-					transactionInstance.add(3, mockItem);
-					transactionInstance.saveEach(() => {
-						return new Promise((resolve, reject) => {
-							setTimeout(() => {
-								resolve()
-							}, workTime)
-					})}, true).then(() => {
-						expect(new Date().getTime() - startTime).toBeGreaterThan(30);
-						expect(new Date().getTime() - startTime).not.toBeGreaterThan(50);
-						done();
-					});
+
+			test('should ignore non saveable transaction', (done) => {
+				transactionInstance.add(1, mockItem, { save: false });
+				transactionInstance.add(2, mockItem);
+				transactionInstance.saveEach(mockWork).then(() => {
+					expect(mockWork.mock.calls.length).toBe(1);
+					done();
 				});
 			});
-			
+
+			test('should call work syncronusly for each transaction', (done) => {
+				workTime = 10;
+				transactionInstance.add(1, mockItem);
+				transactionInstance.add(2, mockItem);
+				transactionInstance.add(3, mockItem);
+				transactionInstance.saveEach(() => {
+					return new Promise((resolve, reject) => {
+						setTimeout(() => {
+							resolve()
+						}, workTime)
+				})}, true).then(() => {
+					expect(new Date().getTime() - startTime).toBeGreaterThan(30);
+					expect(new Date().getTime() - startTime).not.toBeGreaterThan(50);
+					done();
+				});
+			});
 	
 			describe('save', () => {
+				let mockWork;
+
+				beforeEach(() => {
+					mockWork = jest.fn().mockReturnValue(Promise.resolve());
+				});
+
 				test('should call work one time with array of transactions', (done) => {
 					transactionInstance.add(1, mockItem);
 					transactionInstance.add(2, mockItem);
@@ -442,6 +359,48 @@ describe('after init', () => {
 				test('should not call work with an empty array of transactions', (done) => {
 					transactionInstance.save(mockWork).then(() => {
 						expect(mockWork.mock.calls.length).toBe(0);
+						done();
+					});
+				});
+			});
+
+			describe('save', () => {
+				let mockWork;
+
+				beforeEach(() => {
+					mockWork = jest.fn().mockReturnValue(Promise.resolve());
+				});
+
+				test('should call work one time with array of transactions', (done) => {
+					transactionInstance.add(1, mockItem);
+					transactionInstance.add(2, mockItem);
+					transactionInstance.save(mockWork).then(() => {
+						expect(mockWork.mock.calls.length).toBe(1);
+						done();
+					});
+				});
+	
+				test('should not call work with an empty array of transactions', (done) => {
+					transactionInstance.save(mockWork).then(() => {
+						expect(mockWork.mock.calls.length).toBe(0);
+						done();
+					});
+				});
+			});
+
+			describe('saveLatestEdge', () => {
+				let mockWork;
+
+				beforeEach(() => {
+					mockWork = jest.fn().mockReturnValue(Promise.resolve());
+				});
+
+				test('should call work one time with array of transactions', (done) => {
+					transactionInstance.add(1, {value: 'test'});
+					transactionInstance.add(1, {value: 'test 1'});
+					transactionInstance.add(2, {value: 'test 2'});
+					transactionInstance.saveLatestEdge(mockWork).then(() => {
+						expect(mockWork).toBeCalledWith([{value: 'test 1'}, {value: 'test 2'}]);
 						done();
 					});
 				});
