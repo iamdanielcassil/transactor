@@ -405,6 +405,18 @@ describe('after init', () => {
 					});
 				});
 			});
+
+			describe('superimpose', () => {
+				it('should add transactions on top of client data', () => {
+					let clientData = [{id: 1, val: 'test'}];
+
+					transactionInstance.add(1, {id: 1, val: 'test update'});
+
+					let imposedData = transactionInstance.superimpose(clientData.map(cd => { return {id: cd.id, data: cd }}));
+
+					expect(imposedData[0].data.val).toBe('test update');
+				})
+			})
 		});
 	});
 });

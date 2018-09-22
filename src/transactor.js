@@ -159,23 +159,40 @@ class Transactor {
 		return this._getLatest().map(l => l.data);
 	}
 
+	superimpose(data) {
+		let transactions = this._getLatest();
+    let clientData =  data.slice();
+    
+    transactions.forEach(transaction => {
+			let index = clientData.findIndex(clientData => clientData.id === transaction.id);
+			let clientTransaction = {id: transaction.id, data: transaction.data}
+
+      if (index === -1 && !transaction.options.delete) {
+        clientData.push(clientTransaction);
+      } else {
+				if (transaction.options.delete) {
+					delete[index];
+				} else {
+					clientData[index] = clientTransaction;
+				}
+			}
+		});
+		
+		return clientData;
+	}
+
 	/**
 	 * Convience function - calls work function for each transaction.
 	 * @param {Function} work Function called for each transaction.  expects work to return a promise.
 	 * @returns Promise
 	 */
-	saveEach(work, sync = false) {
+	saveEach(work) {
 		let transactions = this._get();
 		let promises = [];
 	
 		transactions.forEach(transaction => {
 			if (transaction.options.save) {
-				if (sync) {
-					promises.push(syncAsyncWork(work, transaction.data))
-				} else {
-					promises.push(work(transaction.data));
-				}
-				
+				promises.push(syncAsyncWork(work, transaction.data))
 			}
 		});
 	
@@ -269,6 +286,10 @@ class Transactor {
 		} else {
 			return Math.max(...existingIds) + 1;
 		}
+	}
+
+	_isDeleteTransaction(transaction) {
+		return transaction.data === undefined;
 	}
 
 	/**
