@@ -187,32 +187,32 @@ class Transactor {
 		return clientData;
 	}
 
-	/**
-	 * Convience function - calls work function for each transaction.
-	 * @param {Function} work Function called for each transaction.  expects work to return a promise.
-	 * @returns Promise
-	 */
-	saveEach(put, post, del) {
-		let transactions = this._get();
-		let promises = [];
+	// /**
+	//  * Convience function - calls work function for each transaction.
+	//  * @param {Function} work Function called for each transaction.  expects work to return a promise.
+	//  * @returns Promise
+	//  */
+	// saveEach(put, post, del) {
+	// 	let transactions = this._get();
+	// 	let promises = [];
 
-		transactions.forEach(transaction => {
-			if (transaction.options.save) {
-				if (transaction.options.add) {
-					_throwIfNoWorker('add', post);
-					promises.push(syncAsyncWork(post, transaction.data));
-				} else if (transaction.options.delete) {
-					_throwIfNoWorker('delete', del);
-					promises.push(syncAsyncWork(del, transaction.data));
-				} else {
-					_throwIfNoWorker('update', put);
-					promises.push(syncAsyncWork(put, transaction.data));
-				}
-			}
-		});
+	// 	transactions.forEach(transaction => {
+	// 		if (transaction.options.save) {
+	// 			if (transaction.options.add) {
+	// 				_throwIfNoWorker('add', post);
+	// 				promises.push(syncAsyncWork(post, transaction.data));
+	// 			} else if (transaction.options.delete) {
+	// 				_throwIfNoWorker('delete', del);
+	// 				promises.push(syncAsyncWork(del, transaction.data));
+	// 			} else {
+	// 				_throwIfNoWorker('update', put);
+	// 				promises.push(syncAsyncWork(put, transaction.data));
+	// 			}
+	// 		}
+	// 	});
 	
-		return Promise.all(promises);
-	}
+	// 	return Promise.all(promises);
+	// }
 
 	/**
 	 * calls work function one time with array of transactions
@@ -221,8 +221,9 @@ class Transactor {
 	 */
 	save(put, post, del) {
 		let transactions = this._get();
+		let sorted = this._sortTransactionsByType(transactions);
 
-		return this._save(transactions, put, post, del);
+		return this._save(sorted, put, post, del);
 	}
 
 	/**
@@ -231,8 +232,9 @@ class Transactor {
 	 */
 	saveLatestEdge(put, post, del) {
 		let transactions = this._getLatest();
+		let sorted = this._sortTransactionsByType(transactions);
 
-		return this._save(transactions, put, post, del);
+		return this._save(sorted, put, post, del);
 	}
 
 	/**
@@ -273,20 +275,31 @@ class Transactor {
 	 * Internal get transactions choising the last for each unique id
 	 */
 	_getLatest() {
-		let transactions = this._get();
-		let latest = [];
+		let transactions = this._get().slice();
+		let dataToSave = [];
 
-		transactions.forEach(t => {
-			let index = latest.findIndex(l => l.id === t.id);
+		transactions.forEach(transaction => {
+			let index = dataToSave.findIndex(d => d.id === transaction.id);
 
 			if (index === -1) {
-				latest.push(t);
+				dataToSave.push(transaction);
 			} else {
-				latest[index] = t;
+				let existingData = dataToSave[index];
+
+				if (existingData.options.add) {
+					if (transaction.options.delete) {
+						dataToSave.splice(index, 1);
+					} else {
+						transaction.options = {save: transaction.options.save, add: true}
+						dataToSave[index] = transaction
+					}
+				} else {
+					dataToSave[index] = transaction;
+				}
 			}
 		});
 
-		return latest;
+		return dataToSave;
 	}
 
 	/**
@@ -312,8 +325,7 @@ class Transactor {
 	 * @param {Array} transactions 
 	 * @param {Function} work 
 	 */
-	_save(transactions, put, post, del) {
-		let dataToSave = this._sortTransactionsIntoTypes(transactions);
+	_save(dataToSave, put, post, del) {
 		let workPromises = [];
 
 		// only call work when we have transactions
@@ -334,32 +346,23 @@ class Transactor {
 		return Promise.all(workPromises);
 	}
 
-	_sortTransactionsIntoTypes(transactions) {
+	_sortTransactionsByType(transactions) {
 		let dataToSave = {add: [], update: [], delete: []};
-		let addedIds = [];
 
 		transactions.forEach(transaction => {
 			if (transaction.options.save) {
 				if (transaction.options.add) {
-					addedIds.push(transaction.id);
 					dataToSave.add.push(transaction.data);
 				} else if (transaction.options.delete) {
-					if (addedIds.indexOf(transaction.id) === -1) { // ensure this was not added as a transaction then deleted.
-						dataToSave.delete.push(transaction.data);
-					}
+					dataToSave.delete.push(transaction.data);
 				} else {
-					if (addedIds.indexOf(transaction.id) !== -1) { // if this was added as a transaction then updated, save as add.
-						dataToSave.add.push(transaction.data);
-					} else {
-						dataToSave.update.push(transaction.data);
-					}
+					dataToSave.update.push(transaction.data);
 				}
 			}
 		});
 
 		return dataToSave;
 	}
-
 
 	/**
 	 * Intenral set transactions for this instance
