@@ -132,19 +132,6 @@ transactor.saveEdge(saveFunction)
 ]
 ```
 
-### saveEach - call work one time for each piece of data
-```javascript
-transactor.saveEach(saveFunction)
-```
-this will call console.log one time for each piece of data to save.
-```javascript
-  // call one
-  {id: 1, value: 'test'},
-  //call two
-  {id: 1, value: 'test change'},
-  // call three
-  {id: 1, value: 'test change two'},
-```
 #### saveable vs non-saveable transactions
 depnding on what type of data and why you are making transactions, you may need to create client side only transactions.  
 
