@@ -388,176 +388,176 @@ describe('init', () => {
 					done();
 				});
 			});
-	
-			describe('save', () => {
-				let mockWork;
-
-				beforeEach(() => {
-					mockWork = jest.fn().mockReturnValue(Promise.resolve());
-				});
-
-				test('should call update one time with array of transactions', (done) => {
-					transactionInstance.add(1, mockItem);
-					transactionInstance.add(2, mockItem);
-					transactionInstance.save(mockWork).then(() => {
-						expect(mockWork.mock.calls.length).toBe(1);
-						done();
-					});
-				});
-
-				test('should call add one time with array of transactions', (done) => {
-					transactionInstance.add(1, mockItem, {add: true});
-					transactionInstance.add(2, mockItem, {add: true});
-					transactionInstance.save(undefined, mockWork, undefined).then(() => {
-						expect(mockWork.mock.calls.length).toBe(1);
-						done();
-					});
-				});
-
-				test('should call delete one time with array of transactions', (done) => {
-					transactionInstance.add(1, mockItem, {delete: true});
-					transactionInstance.add(2, mockItem, {delete: true});
-					transactionInstance.save(undefined, undefined, mockWork).then(() => {
-						expect(mockWork.mock.calls.length).toBe(1);
-						done();
-					});
-				});
-
-				test('should call update, add, and delete each one time with array of transactions', (done) => {
-					transactionInstance.add(1, mockItem, {add: true});
-					transactionInstance.add(2, mockItem, {update: true});
-					transactionInstance.add(2, mockItem, {delete: true});
-					transactionInstance.save(mockWork, mockWork, mockWork).then(() => {
-						expect(mockWork.mock.calls.length).toBe(3);
-						done();
-					});
-				});
-	
-				test('should not call work with an empty array of transactions', (done) => {
-					transactionInstance.save(mockWork).then(() => {
-						expect(mockWork.mock.calls.length).toBe(0);
-						done();
-					});
-				});
-			});
-
-			describe('saveLatestEdge', () => {
-				let mockWork;
-
-				beforeEach(() => {
-					mockWork = jest.fn().mockReturnValue(Promise.resolve());
-				});
-
-				test('should call work one time with array of transactions defaulting to put if add or delete was not set.', (done) => {
-					transactionInstance.add(1, {value: 'test'});
-					transactionInstance.add(1, {value: 'test 1'});
-					transactionInstance.add(2, {value: 'test 2'});
-					transactionInstance.saveLatestEdge(mockWork).then(() => {
-						expect(mockWork).toBeCalledWith([{value: 'test 1'}, {value: 'test 2'}]);
-						done();
-					});
-				});
-
-				test('should call update one time with array of transactions', (done) => {
-					transactionInstance.add(1, mockItem);
-					transactionInstance.add(2, mockItem);
-					transactionInstance.saveLatestEdge(mockWork).then(() => {
-						expect(mockWork.mock.calls.length).toBe(1);
-						done();
-					});
-				});
-
-				test('should call add one time with array of transactions', (done) => {
-					transactionInstance.add(1, mockItem, {add: true});
-					transactionInstance.add(2, mockItem, {add: true});
-					transactionInstance.saveLatestEdge(undefined, mockWork, undefined).then(() => {
-						expect(mockWork.mock.calls.length).toBe(1);
-						done();
-					});
-				});
-
-				test('should call delete one time with array of transactions', (done) => {
-					transactionInstance.add(1, mockItem, {delete: true});
-					transactionInstance.add(2, mockItem, {delete: true});
-					transactionInstance.saveLatestEdge(undefined, undefined, mockWork).then(() => {
-						expect(mockWork.mock.calls.length).toBe(1);
-						done();
-					});
-				});
-
-				test('should call update, add, and delete each one time with array of transactions', (done) => {
-					transactionInstance.add(1, mockItem, {add: true});
-					transactionInstance.add(2, mockItem, {update: true});
-					transactionInstance.add(3, mockItem, {delete: true});
-					transactionInstance.saveLatestEdge(mockWork, mockWork, mockWork).then(() => {
-						expect(mockWork.mock.calls.length).toBe(3);
-						done();
-					});
-				});
-
-				test('should call work type for last transaction of a given id', (done) => {
-					transactionInstance.add(1, mockItem, {add: true});
-					transactionInstance.add(1, mockItem, {update: true});
-					transactionInstance.add(1, mockItem, {delete: true});
-					transactionInstance.saveLatestEdge(undefined, undefined, mockWork).then(() => {
-						expect(mockWork.mock.calls.length).toBe(1);
-						done();
-					});
-				});
-	
-				test('should not call work with an empty array of transactions', (done) => {
-					transactionInstance.saveLatestEdge(mockWork).then(() => {
-						expect(mockWork.mock.calls.length).toBe(0);
-						done();
-					});
-				});
-			});
-
-			describe('superimpose', () => {
-				it('should add transactions on top of client data', () => {
-					let clientData = [{id: 1, val: 'test'}];
-
-					transactionInstance.add(1, {id: 1, val: 'test update'});
-
-					let imposedData = transactionInstance.superimpose(clientData.map(cd => { return {id: cd.id, data: cd }}));
-
-					expect(imposedData.length).toBe(1);
-					expect(imposedData[0].data.val).toBe('test update');
-				});
-
-				it('should add last transactions on top of client data', () => {
-					let clientData = [{id: 1, val: 'test'}];
-
-					transactionInstance.add(1, {id: 1, val: 'test update'});
-					transactionInstance.add(1, {id: 1, val: 'test update 2'});
-
-					let imposedData = transactionInstance.superimpose(clientData.map(cd => { return {id: cd.id, data: cd }}));
-
-					expect(imposedData.length).toBe(1);
-					expect(imposedData[0].data.val).toBe('test update 2');
-				});
-
-				it('should remove item with delete transaction from returned data', () => {
-					let clientData = [{id: 1, val: 'test'}, {id: 2, val: 'test2'}];
-
-					transactionInstance.add(1, {id: 1, val: 'test update'}, {delete: true});
-
-					let imposedData = transactionInstance.superimpose(clientData.map(cd => { return {id: cd.id, data: cd }}));
-
-					expect(imposedData.length).toBe(1);
-					expect(imposedData[0].data.val).toBe('test2');
-				});
-
-				it('should not affect client data without transactions', () => {
-					let clientData = [{id: 2, val: 'test'}];
-
-					transactionInstance.add(1, {id: 1, val: 'test update'});
-
-					let imposedData = transactionInstance.superimpose(clientData.map(cd => { return {id: cd.id, data: cd }}));
-
-					expect(imposedData.length).toBe(2);
-				});
-			})
 		});
+	
+		describe('save', () => {
+			let mockWork;
+
+			beforeEach(() => {
+				mockWork = jest.fn().mockReturnValue(Promise.resolve());
+			});
+
+			test('should call update one time with array of transactions', (done) => {
+				transactionInstance.add(1, mockItem);
+				transactionInstance.add(2, mockItem);
+				transactionInstance.save(mockWork).then(() => {
+					expect(mockWork.mock.calls.length).toBe(1);
+					done();
+				});
+			});
+
+			test('should call add one time with array of transactions', (done) => {
+				transactionInstance.add(1, mockItem, {add: true});
+				transactionInstance.add(2, mockItem, {add: true});
+				transactionInstance.save(undefined, mockWork, undefined).then(() => {
+					expect(mockWork.mock.calls.length).toBe(1);
+					done();
+				});
+			});
+
+			test('should call delete one time with array of transactions', (done) => {
+				transactionInstance.add(1, mockItem, {delete: true});
+				transactionInstance.add(2, mockItem, {delete: true});
+				transactionInstance.save(undefined, undefined, mockWork).then(() => {
+					expect(mockWork.mock.calls.length).toBe(1);
+					done();
+				});
+			});
+
+			test('should call update, add, and delete each one time with array of transactions', (done) => {
+				transactionInstance.add(1, mockItem, {add: true});
+				transactionInstance.add(2, mockItem, {update: true});
+				transactionInstance.add(2, mockItem, {delete: true});
+				transactionInstance.save(mockWork, mockWork, mockWork).then(() => {
+					expect(mockWork.mock.calls.length).toBe(3);
+					done();
+				});
+			});
+
+			test('should not call work with an empty array of transactions', (done) => {
+				transactionInstance.save(mockWork).then(() => {
+					expect(mockWork.mock.calls.length).toBe(0);
+					done();
+				});
+			});
+		});
+
+		describe('saveLatestEdge', () => {
+			let mockWork;
+
+			beforeEach(() => {
+				mockWork = jest.fn().mockReturnValue(Promise.resolve());
+			});
+
+			test('should call work one time with array of transactions defaulting to put if add or delete was not set.', (done) => {
+				transactionInstance.add(1, {value: 'test'});
+				transactionInstance.add(1, {value: 'test 1'});
+				transactionInstance.add(2, {value: 'test 2'});
+				transactionInstance.saveLatestEdge(mockWork).then(() => {
+					expect(mockWork).toBeCalledWith([{value: 'test 1'}, {value: 'test 2'}]);
+					done();
+				});
+			});
+
+			test('should call update one time with array of transactions', (done) => {
+				transactionInstance.add(1, mockItem);
+				transactionInstance.add(2, mockItem);
+				transactionInstance.saveLatestEdge(mockWork).then(() => {
+					expect(mockWork.mock.calls.length).toBe(1);
+					done();
+				});
+			});
+
+			test('should call add one time with array of transactions', (done) => {
+				transactionInstance.add(1, mockItem, {add: true});
+				transactionInstance.add(2, mockItem, {add: true});
+				transactionInstance.saveLatestEdge(undefined, mockWork, undefined).then(() => {
+					expect(mockWork.mock.calls.length).toBe(1);
+					done();
+				});
+			});
+
+			test('should call delete one time with array of transactions', (done) => {
+				transactionInstance.add(1, mockItem, {delete: true});
+				transactionInstance.add(2, mockItem, {delete: true});
+				transactionInstance.saveLatestEdge(undefined, undefined, mockWork).then(() => {
+					expect(mockWork.mock.calls.length).toBe(1);
+					done();
+				});
+			});
+
+			test('should call update, add, and delete each one time with array of transactions', (done) => {
+				transactionInstance.add(1, mockItem, {add: true});
+				transactionInstance.add(2, mockItem, {update: true});
+				transactionInstance.add(3, mockItem, {delete: true});
+				transactionInstance.saveLatestEdge(mockWork, mockWork, mockWork).then(() => {
+					expect(mockWork.mock.calls.length).toBe(3);
+					done();
+				});
+			});
+
+			test('should call work type for last transaction of a given id', (done) => {
+				transactionInstance.add(1, mockItem, {add: true});
+				transactionInstance.add(1, mockItem, {update: true});
+				transactionInstance.add(1, mockItem, {delete: true});
+				transactionInstance.saveLatestEdge(undefined, undefined, mockWork).then(() => {
+					expect(mockWork.mock.calls.length).toBe(1);
+					done();
+				});
+			});
+
+			test('should not call work with an empty array of transactions', (done) => {
+				transactionInstance.saveLatestEdge(mockWork).then(() => {
+					expect(mockWork.mock.calls.length).toBe(0);
+					done();
+				});
+			});
+		});
+
+		describe('superimpose', () => {
+			it('should add transactions on top of client data', () => {
+				let clientData = [{id: 1, val: 'test'}];
+
+				transactionInstance.add(1, {id: 1, val: 'test update'});
+
+				let imposedData = transactionInstance.superimpose(clientData.map(cd => { return {id: cd.id, data: cd }}));
+
+				expect(imposedData.length).toBe(1);
+				expect(imposedData[0].data.val).toBe('test update');
+			});
+
+			it('should add last transactions on top of client data', () => {
+				let clientData = [{id: 1, val: 'test'}];
+
+				transactionInstance.add(1, {id: 1, val: 'test update'});
+				transactionInstance.add(1, {id: 1, val: 'test update 2'});
+
+				let imposedData = transactionInstance.superimpose(clientData.map(cd => { return {id: cd.id, data: cd }}));
+
+				expect(imposedData.length).toBe(1);
+				expect(imposedData[0].data.val).toBe('test update 2');
+			});
+
+			it('should remove item with delete transaction from returned data', () => {
+				let clientData = [{id: 1, val: 'test'}, {id: 2, val: 'test2'}];
+
+				transactionInstance.add(1, {id: 1, val: 'test update'}, {delete: true});
+
+				let imposedData = transactionInstance.superimpose(clientData.map(cd => { return {id: cd.id, data: cd }}));
+
+				expect(imposedData.length).toBe(1);
+				expect(imposedData[0].data.val).toBe('test2');
+			});
+
+			it('should not affect client data without transactions', () => {
+				let clientData = [{id: 2, val: 'test'}];
+
+				transactionInstance.add(1, {id: 1, val: 'test update'});
+
+				let imposedData = transactionInstance.superimpose(clientData.map(cd => { return {id: cd.id, data: cd }}));
+
+				expect(imposedData.length).toBe(2);
+			});
+		})
 	});
 });

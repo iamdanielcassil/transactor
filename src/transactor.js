@@ -336,15 +336,23 @@ class Transactor {
 
 	_sortTransactionsIntoTypes(transactions) {
 		let dataToSave = {add: [], update: [], delete: []};
+		let addedIds = [];
 
 		transactions.forEach(transaction => {
 			if (transaction.options.save) {
 				if (transaction.options.add) {
+					addedIds.push(transaction.id);
 					dataToSave.add.push(transaction.data);
 				} else if (transaction.options.delete) {
-					dataToSave.delete.push(transaction.data);
+					if (addedIds.indexOf(transaction.id) === -1) { // ensure this was not added as a transaction then deleted.
+						dataToSave.delete.push(transaction.data);
+					}
 				} else {
-					dataToSave.update.push(transaction.data);
+					if (addedIds.indexOf(transaction.id) !== -1) { // if this was added as a transaction then updated, save as add.
+						dataToSave.add.push(transaction.data);
+					} else {
+						dataToSave.update.push(transaction.data);
+					}
 				}
 			}
 		});
