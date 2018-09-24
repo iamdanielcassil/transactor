@@ -66,7 +66,13 @@ class Transactor {
 	 * @param {Object} data 
 	 * @param {Object} options 
 	 */
-	add(id, data, options = { save: true }) {
+	add(id, data, options = {}) {
+		if (!(options.add || options.update || options.delete)) {
+			options.update = true;
+		}
+		if (options.save !== false) {
+			options.save = true;
+		}
 		this._add(id, data, options);
 		this._revertedTransactions = [];
 	}
@@ -77,7 +83,7 @@ class Transactor {
 	 * @param {*} data 
 	 * @param {Object} options 
 	 */
-	asyncAdd(id, data, options = { save: true }) {
+	asyncAdd(id, data, options = { save: true, add: false, update: true, delete: false }) {
 		return syncAsyncWork(() => {
 			this._add(id, data, options);
 			this._revertedTransactions = [];
@@ -152,11 +158,11 @@ class Transactor {
 	 * get all transactions for this instance
 	 */
 	get() {
-		return this._get().map(t => t.data);
+		return this._get().map(t => { return { id: t.id, data: t.data, options: t.options }});
 	}
 
 	getLatestEdge() {
-		return this._getLatest().map(l => l.data);
+		return this._getLatest().map(t => { return { id: t.id, data: t.data, options: t.options }});
 	}
 
 	superimpose(data) {
@@ -186,13 +192,22 @@ class Transactor {
 	 * @param {Function} work Function called for each transaction.  expects work to return a promise.
 	 * @returns Promise
 	 */
-	saveEach(work) {
+	saveEach(put, post, del) {
 		let transactions = this._get();
 		let promises = [];
-	
+
 		transactions.forEach(transaction => {
 			if (transaction.options.save) {
-				promises.push(syncAsyncWork(work, transaction.data))
+				if (transaction.options.add) {
+					_throwIfNoWorker('add', post);
+					promises.push(syncAsyncWork(post, transaction.data));
+				} else if (transaction.options.delete) {
+					_throwIfNoWorker('delete', del);
+					promises.push(syncAsyncWork(del, transaction.data));
+				} else {
+					_throwIfNoWorker('update', put);
+					promises.push(syncAsyncWork(put, transaction.data));
+				}
 			}
 		});
 	
@@ -204,20 +219,20 @@ class Transactor {
 	 * @param {Function} work Function called for each transaction.  expects work to return a promise.
 	 * @returns Promise
 	 */
-	save(work) {
+	save(put, post, del) {
 		let transactions = this._get();
 
-		return this._save(transactions, work);
+		return this._save(transactions, put, post, del);
 	}
 
 	/**
 	 * calls work function with array of transactions - if multiple transactions exist for a single ID it choses the latest one
 	 * @param {Function} work 
 	 */
-	saveLatestEdge(work) {
+	saveLatestEdge(put, post, del) {
 		let transactions = this._getLatest();
 
-		return this._save(transactions, work);
+		return this._save(transactions, put, post, del);
 	}
 
 	/**
@@ -297,19 +312,44 @@ class Transactor {
 	 * @param {Array} transactions 
 	 * @param {Function} work 
 	 */
-	_save(transactions, work) {
-		let dataToSave = transactions.filter(transaction => {
-			return transaction.options.save;
-		}).map(transaction => {
-			return transaction.data;
-		});
+	_save(transactions, put, post, del) {
+		let dataToSave = this._sortTransactionsIntoTypes(transactions);
+		let workPromises = [];
 
 		// only call work when we have transactions
-		if (dataToSave.length > 0) {
-			return Promise.resolve(work(dataToSave));
-		} else {
+		if (dataToSave.add.length > 0) {
+			workPromises.push(post(dataToSave.add));
+		}
+		if (dataToSave.delete.length > 0) {
+			workPromises.push(del(dataToSave.delete));
+		}
+		if (dataToSave.update.length > 0) {
+			workPromises.push(put(dataToSave.update));
+		}
+
+		if (workPromises.length === 0) {
 			return Promise.resolve();
 		}
+
+		return Promise.all(workPromises);
+	}
+
+	_sortTransactionsIntoTypes(transactions) {
+		let dataToSave = {add: [], update: [], delete: []};
+
+		transactions.forEach(transaction => {
+			if (transaction.options.save) {
+				if (transaction.options.add) {
+					dataToSave.add.push(transaction.data);
+				} else if (transaction.options.delete) {
+					dataToSave.delete.push(transaction.data);
+				} else {
+					dataToSave.update.push(transaction.data);
+				}
+			}
+		});
+
+		return dataToSave;
 	}
 
 
@@ -350,6 +390,12 @@ function getNextKey(transactionData) {
 	let keys = Object.keys(transactionData);
 	
 	return keys.length > 0 ? Math.max(...keys) + 1 : 0;
+}
+
+function _throwIfNoWorker(type, functionToEnsure) {
+	if (typeof functionToEnsure !== 'function') {
+		throw new Error(`transaction was created with option: ${type}, but not valid function was given to handle this type.`);
+	}
 }
 
 module.exports = {
