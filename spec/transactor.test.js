@@ -14,13 +14,13 @@ test('create should call init if it was not already called', () => {
 	expect(spy).toBeCalled();
 });
 
-describe('after init', () => {
+describe('init', () => {
 	beforeEach(() => {
 		store = {};
 		transactionInstance = transactor.create();
 	});
 	
-	test('init should use default getter and setter', () => {
+	test('should use default getter and setter', () => {
 		transactor.init();
 	
 		transactionInstance.add(1, mockItem);
@@ -28,7 +28,7 @@ describe('after init', () => {
 		expect(transactionInstance.key).toBe(1);
 	});
 	
-	test('init should call getStub getter', () => {
+	test('should use provided getter', () => {
 		let called;
 		let getStub = jest.fn().mockImplementation(get);
 	
@@ -39,7 +39,7 @@ describe('after init', () => {
 		getStub.mockRestore();
 	});
 	
-	test('init should not fail if getter returns undefined at create', () => {
+	test('should not fail if getter returns undefined at create', () => {
 		let getStub = jest.fn().mockImplementation(() => undefined);
 	
 		transactor.init(getStub, set);
@@ -49,7 +49,7 @@ describe('after init', () => {
 		getStub.mockRestore();
 	});
 	
-	test('init should call setStub', () => {
+	test('should use provided setter', () => {
 		let setStub = jest.fn().mockImplementation(set);
 	
 		transactor.init(get, setStub);
@@ -59,14 +59,14 @@ describe('after init', () => {
 		setStub.mockRestore();
 	})
 	
-	test('create should create a new instance of Transactor', () => {
-		transactionInstance = transactor.create();
-	
-		expect(transactionInstance instanceof transactor.Transactor).toBeTruthy();
-	});
-	
 	describe('create', () => {
-		test('should set instance this.options to options', () => {
+		test('should create a new instance of Transactor', () => {
+			transactionInstance = transactor.create();
+		
+			expect(transactionInstance instanceof transactor.Transactor).toBeTruthy();
+		});
+
+		test('should set instance options to options', () => {
 			let options = {test: true};
 			transactionInstance = transactor.create(options);
 		
@@ -278,7 +278,7 @@ describe('after init', () => {
 				transactionInstance = transactor.create();
 			});
 	
-			test('should add a new transaction to this transactor instance', (done) => {
+			test('should add a new transaction', (done) => {
 				transactionInstance.asyncAdd(1, mockItem).then(() => {
 					expect(store['0'].length).toEqual(1);
 					expect(store['0'][0].data).toEqual(mockItem);
@@ -290,15 +290,6 @@ describe('after init', () => {
 				transactionInstance.asyncAdd(1, mockItem);
 				transactionInstance.asyncAdd(1, { isNew: true }).then(() => {
 					expect(store['0'].length).toBe(2);
-					expect(store['0'][1].data.isNew).toBeTruthy();
-					done();
-				});
-			});
-
-			test('should add a new transaction with the new key', (done) => {
-				transactionInstance.asyncAdd(1, mockItem);
-				transactionInstance.asyncAdd(2, { isNew: true }).then(() => {
-					expect(store['0'].length).toEqual(2);
 					expect(store['0'][1].data.isNew).toBeTruthy();
 					done();
 				});
@@ -405,7 +396,7 @@ describe('after init', () => {
 					mockWork = jest.fn().mockReturnValue(Promise.resolve());
 				});
 
-				test('should call work one time with array of transactions', (done) => {
+				test('should call update one time with array of transactions', (done) => {
 					transactionInstance.add(1, mockItem);
 					transactionInstance.add(2, mockItem);
 					transactionInstance.save(mockWork).then(() => {
@@ -413,27 +404,31 @@ describe('after init', () => {
 						done();
 					});
 				});
-	
-				test('should not call work with an empty array of transactions', (done) => {
-					transactionInstance.save(mockWork).then(() => {
-						expect(mockWork.mock.calls.length).toBe(0);
+
+				test('should call add one time with array of transactions', (done) => {
+					transactionInstance.add(1, mockItem, {add: true});
+					transactionInstance.add(2, mockItem, {add: true});
+					transactionInstance.save(undefined, mockWork, undefined).then(() => {
+						expect(mockWork.mock.calls.length).toBe(1);
 						done();
 					});
 				});
-			});
 
-			describe('save', () => {
-				let mockWork;
-
-				beforeEach(() => {
-					mockWork = jest.fn().mockReturnValue(Promise.resolve());
+				test('should call delete one time with array of transactions', (done) => {
+					transactionInstance.add(1, mockItem, {delete: true});
+					transactionInstance.add(2, mockItem, {delete: true});
+					transactionInstance.save(undefined, undefined, mockWork).then(() => {
+						expect(mockWork.mock.calls.length).toBe(1);
+						done();
+					});
 				});
 
-				test('should call work one time with array of transactions', (done) => {
-					transactionInstance.add(1, mockItem);
-					transactionInstance.add(2, mockItem);
-					transactionInstance.save(mockWork).then(() => {
-						expect(mockWork.mock.calls.length).toBe(1);
+				test('should call update, add, and delete each one time with array of transactions', (done) => {
+					transactionInstance.add(1, mockItem, {add: true});
+					transactionInstance.add(2, mockItem, {update: true});
+					transactionInstance.add(2, mockItem, {delete: true});
+					transactionInstance.save(mockWork, mockWork, mockWork).then(() => {
+						expect(mockWork.mock.calls.length).toBe(3);
 						done();
 					});
 				});
@@ -462,6 +457,60 @@ describe('after init', () => {
 						done();
 					});
 				});
+
+				test('should call update one time with array of transactions', (done) => {
+					transactionInstance.add(1, mockItem);
+					transactionInstance.add(2, mockItem);
+					transactionInstance.saveLatestEdge(mockWork).then(() => {
+						expect(mockWork.mock.calls.length).toBe(1);
+						done();
+					});
+				});
+
+				test('should call add one time with array of transactions', (done) => {
+					transactionInstance.add(1, mockItem, {add: true});
+					transactionInstance.add(2, mockItem, {add: true});
+					transactionInstance.saveLatestEdge(undefined, mockWork, undefined).then(() => {
+						expect(mockWork.mock.calls.length).toBe(1);
+						done();
+					});
+				});
+
+				test('should call delete one time with array of transactions', (done) => {
+					transactionInstance.add(1, mockItem, {delete: true});
+					transactionInstance.add(2, mockItem, {delete: true});
+					transactionInstance.saveLatestEdge(undefined, undefined, mockWork).then(() => {
+						expect(mockWork.mock.calls.length).toBe(1);
+						done();
+					});
+				});
+
+				test('should call update, add, and delete each one time with array of transactions', (done) => {
+					transactionInstance.add(1, mockItem, {add: true});
+					transactionInstance.add(2, mockItem, {update: true});
+					transactionInstance.add(3, mockItem, {delete: true});
+					transactionInstance.saveLatestEdge(mockWork, mockWork, mockWork).then(() => {
+						expect(mockWork.mock.calls.length).toBe(3);
+						done();
+					});
+				});
+
+				test('should call work type for last transaction of a given id', (done) => {
+					transactionInstance.add(1, mockItem, {add: true});
+					transactionInstance.add(1, mockItem, {update: true});
+					transactionInstance.add(1, mockItem, {delete: true});
+					transactionInstance.saveLatestEdge(undefined, undefined, mockWork).then(() => {
+						expect(mockWork.mock.calls.length).toBe(1);
+						done();
+					});
+				});
+	
+				test('should not call work with an empty array of transactions', (done) => {
+					transactionInstance.saveLatestEdge(mockWork).then(() => {
+						expect(mockWork.mock.calls.length).toBe(0);
+						done();
+					});
+				});
 			});
 
 			describe('superimpose', () => {
@@ -486,6 +535,17 @@ describe('after init', () => {
 
 					expect(imposedData.length).toBe(1);
 					expect(imposedData[0].data.val).toBe('test update 2');
+				});
+
+				it('should remove item with delete transaction from returned data', () => {
+					let clientData = [{id: 1, val: 'test'}, {id: 2, val: 'test2'}];
+
+					transactionInstance.add(1, {id: 1, val: 'test update'}, {delete: true});
+
+					let imposedData = transactionInstance.superimpose(clientData.map(cd => { return {id: cd.id, data: cd }}));
+
+					expect(imposedData.length).toBe(1);
+					expect(imposedData[0].data.val).toBe('test2');
 				});
 
 				it('should not affect client data without transactions', () => {

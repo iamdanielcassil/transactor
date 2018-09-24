@@ -177,7 +177,7 @@ class Transactor {
         clientData.push(clientTransaction);
       } else {
 				if (transaction.options.delete) {
-					delete[index];
+					clientData.splice([index], 1);
 				} else {
 					clientData[index] = clientTransaction;
 				}
