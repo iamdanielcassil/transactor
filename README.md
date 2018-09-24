@@ -17,7 +17,7 @@ import sequenceTransactor from 'sequence-transactor'
 ```
 
 #### Very basic example site 
-https://iamdanielcassil.github.io/web/
+https://iamdanielcassil.github.io/
 
 #### use it
 ```javascript
@@ -37,9 +37,9 @@ let data = transactor.get();
 
 // expected data
 [
-  {id, value: 'test'},
-  {id, value: 'test change'},
-  {id, value: 'test change three'},
+  {id, {id, value: 'test'}, options},
+  {id, {id, value: 'test change'}, options},
+  {id, {id, value: 'test change three'}, options},
 ]
 ```
 #### get latest edge data
@@ -48,7 +48,7 @@ let data = transaction.getLatest();
 
 // expected data
 [
-  {id, value: 'test change three'},
+  {id, {id, value: 'test change three'}, options},
 ]
 ```
 getLatest uses the id param (first param given to add(id, data)) to group data.
@@ -152,8 +152,38 @@ This feature was purpose built for the case where a server manipulates data on s
 
 Yes that is dumb, but when you do not have control of the server... what can you do.
 
-#### saveEachLatest comming soon.
+#### add, update, delete
+transactor.add can be called with an options object.
+```javascript
+transactor.add(id, data, {add: true))
+transactor.add(id, data, {update: true)) // default if none provided
+transactor.add(id, data, {delete: true))
+```
+if these options are used you must give transactor the associated work functions on save.
+transactor.save(updateFunction, addFunction, deleteFunction)
 
+additionaly, delete: true is used for the superimpose(data) function described below.
+
+#### superimpose
+as a convinenece, transactor now has a superimpose function that can correctly modify a provided set of data to account for all transactional changes.
+```javascript
+clientData = [{id: 1, val: 'test'}]
+transactor.add(1, {id: 1, val: 'update test'})
+
+transactor.superimpose(clientData.map(cd => { return { id: cd.id, data: cd }}));
+
+// expected results
+[{id: 1, {id: 1, val: 'update test'}}]
+```
+when used with options= {delete:true}
+```javascript
+clientData = [{id: 1, val: 'test'}]
+transactor.add(1, {}, {delete: true})
+
+// expected results
+[]
+
+```
 ### Overview!
 
 Transactor creates and manages client side transactions, allowing you to then opperate on them individualy or as a whole.  For example, you could create a transaction for adding several new users to a form, then save them all at once.  Additionaly, Transactor gives access to the transactions and provides methods to super impose the transactions on an existing data set, it allows undo and redo features, and can differntiate between saveable and non saveable transactions.  Lastly each instantiation of Transactor keys its transactions uniquely, meaning you can have multiple transctor instance at once.
