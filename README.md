@@ -5,8 +5,9 @@
 
 Transactor is a simple library that helps to keep track of local transactional changes to data.
 
-# Demo Site and Video
+# Demo Site
 https://iamdanielcassil.github.io/
+# Demo Video
 https://iamdanielcassil.github.io/demo/
 
 ### Start Here
