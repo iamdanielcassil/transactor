@@ -7,9 +7,7 @@ Transactor is a simple library that helps to keep track of local transactional c
 
 # Demo Site and Video
 https://iamdanielcassil.github.io/
-<video width="320" height="240" controls>
-  <source src="video.mov" type="video/mp4">
-</video>
+<iframe src='https://gfycat.com/ifr/BriefZigzagChimneyswift' frameborder='0' scrolling='no' width='1148' height='720' allowfullscreen></iframe>
 
 ### Start Here
 
