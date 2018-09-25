@@ -5,6 +5,12 @@
 
 Transactor is a simple library that helps to keep track of local transactional changes to data.
 
+# Demo Site and Video
+https://iamdanielcassil.github.io/
+<video width="320" height="240" controls>
+  <source src="video.mov" type="video/mp4">
+</video>
+
 ### Start Here
 
 #### install
@@ -15,9 +21,6 @@ npm i --save sequence-transactor
 ```javascript
 import sequenceTransactor from 'sequence-transactor'
 ```
-
-#### Very basic example site 
-https://iamdanielcassil.github.io/
 
 #### use it
 ```javascript
