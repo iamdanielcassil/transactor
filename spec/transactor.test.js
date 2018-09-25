@@ -312,83 +312,175 @@ describe('init', () => {
 			});
 		});
 	
-		// describe('saveEach', () => {
-		// 	let startTime;
-		// 	let mockWork;
-		// 	let workTime = 1;
+		describe('saveEach', () => {
+			let startTime;
+			let mockWork;
+			let workTime = 1;
 
-		// 	beforeEach(() => {
-		// 		startTime = new Date().getTime();
-		// 		mockWork = jest.fn().mockReturnValue(Promise.resolve());
-		// 	});
+			beforeEach(() => {
+				startTime = new Date().getTime();
+				mockWork = jest.fn().mockReturnValue(Promise.resolve());
+			});
 
-		// 	test('should call work for each saveable transaction', (done) => {
-		// 		transactionInstance.add(1, mockItem);
-		// 		transactionInstance.add(2, mockItem);
-		// 		transactionInstance.saveEach(mockWork).then(() => {
-		// 			expect(mockWork.mock.calls.length).toBe(2);
-		// 			done();
-		// 		});
-		// 	});
+			test('should call work for each saveable transaction', (done) => {
+				transactionInstance.add(1, mockItem);
+				transactionInstance.add(2, mockItem);
+				transactionInstance.saveEach(mockWork).then(() => {
+					expect(mockWork.mock.calls.length).toBe(2);
+					done();
+				});
+			});
 
-		// 	test('should ignore non saveable transaction', (done) => {
-		// 		transactionInstance.add(1, mockItem, { save: false });
-		// 		transactionInstance.add(2, mockItem);
-		// 		transactionInstance.saveEach(mockWork).then(() => {
-		// 			expect(mockWork.mock.calls.length).toBe(1);
-		// 			done();
-		// 		});
-		// 	});
+			test('should ignore non saveable transaction', (done) => {
+				transactionInstance.add(1, mockItem, { save: false });
+				transactionInstance.add(2, mockItem);
+				transactionInstance.saveEach(mockWork).then(() => {
+					expect(mockWork.mock.calls.length).toBe(1);
+					done();
+				});
+			});
 
-		// 	test('should call add function for options.add = true transaction', (done) => {
-		// 		transactionInstance.add(1, mockItem, {add: true});
-		// 		transactionInstance.saveEach(undefined, mockWork, undefined).then(() => {
-		// 			expect(mockWork.mock.calls.length).toBe(1);
-		// 			done();
-		// 		});
-		// 	});
+			test('should call add function for options.add = true transaction', (done) => {
+				transactionInstance.add(1, mockItem, {add: true});
+				transactionInstance.saveEach(undefined, mockWork, undefined).then(() => {
+					expect(mockWork.mock.calls.length).toBe(1);
+					done();
+				});
+			});
 
-		// 	test('should call delete function for options.delete = true transaction', (done) => {
-		// 		transactionInstance.add(1, mockItem, {delete: true});
-		// 		transactionInstance.saveEach(undefined, undefined, mockWork).then(() => {
-		// 			expect(mockWork.mock.calls.length).toBe(1);
-		// 			done();
-		// 		});
-		// 	});
+			test('should call delete function for options.delete = true transaction', (done) => {
+				transactionInstance.add(1, mockItem, {delete: true});
+				transactionInstance.saveEach(undefined, undefined, mockWork).then(() => {
+					expect(mockWork.mock.calls.length).toBe(1);
+					done();
+				});
+			});
 
-		// 	test('should call add, update, delete functions once each', (done) => {
-		// 		let mockAdd = jest.fn().mockReturnValue(Promise.resolve());
-		// 		let mockUpdate = jest.fn().mockReturnValue(Promise.resolve());
-		// 		let mockDelete = jest.fn().mockReturnValue(Promise.resolve());
+			test('should call add, update, delete functions once each', (done) => {
+				let mockAdd = jest.fn().mockReturnValue(Promise.resolve());
+				let mockUpdate = jest.fn().mockReturnValue(Promise.resolve());
+				let mockDelete = jest.fn().mockReturnValue(Promise.resolve());
 
-		// 		transactionInstance.add(1, mockItem, {delete: true});
-		// 		transactionInstance.add(1, mockItem, {add: true});
-		// 		transactionInstance.add(1, mockItem, {update: true});
-		// 		transactionInstance.saveEach(mockUpdate, mockAdd, mockDelete).then(() => {
-		// 			expect(mockAdd.mock.calls.length).toBe(1);
-		// 			expect(mockUpdate.mock.calls.length).toBe(1);
-		// 			expect(mockDelete.mock.calls.length).toBe(1);
-		// 			done();
-		// 		});
-		// 	});
+				transactionInstance.add(1, mockItem, {delete: true});
+				transactionInstance.add(1, mockItem, {add: true});
+				transactionInstance.add(1, mockItem, {update: true});
+				transactionInstance.saveEach(mockUpdate, mockAdd, mockDelete).then(() => {
+					expect(mockAdd.mock.calls.length).toBe(1);
+					expect(mockUpdate.mock.calls.length).toBe(1);
+					expect(mockDelete.mock.calls.length).toBe(1);
+					done();
+				});
+			});
 
-		// 	test('should call work syncronusly for each transaction', (done) => {
-		// 		workTime = 10;
-		// 		transactionInstance.add(1, mockItem);
-		// 		transactionInstance.add(2, mockItem);
-		// 		transactionInstance.add(3, mockItem);
-		// 		transactionInstance.saveEach(() => {
-		// 			return new Promise((resolve, reject) => {
-		// 				setTimeout(() => {
-		// 					resolve()
-		// 				}, workTime)
-		// 		})}, true).then(() => {
-		// 			expect(new Date().getTime() - startTime).toBeGreaterThan(30);
-		// 			expect(new Date().getTime() - startTime).not.toBeGreaterThan(50);
-		// 			done();
-		// 		});
-		// 	});
-		// });
+			test('should call work syncronusly for each transaction', (done) => {
+				workTime = 10;
+				transactionInstance.add(1, mockItem);
+				transactionInstance.add(2, mockItem);
+				transactionInstance.add(3, mockItem);
+				transactionInstance.saveEach(() => {
+					return new Promise((resolve, reject) => {
+						setTimeout(() => {
+							resolve()
+						}, workTime)
+				})}, true).then(() => {
+					expect(new Date().getTime() - startTime).toBeGreaterThan(30);
+					expect(new Date().getTime() - startTime).not.toBeGreaterThan(50);
+					done();
+				});
+			});
+		});
+
+		describe('saveEachEdge', () => {
+			let startTime;
+			let mockWork;
+			let workTime = 1;
+
+			beforeEach(() => {
+				startTime = new Date().getTime();
+				mockWork = jest.fn().mockReturnValue(Promise.resolve());
+			});
+
+			test('should call work for each saveable transaction', (done) => {
+				transactionInstance.add(1, mockItem);
+				transactionInstance.add(2, mockItem);
+				transactionInstance.saveEachEdge(mockWork).then(() => {
+					expect(mockWork.mock.calls.length).toBe(2);
+					done();
+				});
+			});
+
+			test('should ignore non saveable transaction', (done) => {
+				transactionInstance.add(1, mockItem, { save: false });
+				transactionInstance.add(2, mockItem);
+				transactionInstance.saveEachEdge(mockWork).then(() => {
+					expect(mockWork.mock.calls.length).toBe(1);
+					done();
+				});
+			});
+
+			test('should call add function for options.add = true transaction', (done) => {
+				transactionInstance.add(1, mockItem, {add: true});
+				transactionInstance.saveEachEdge(undefined, mockWork, undefined).then(() => {
+					expect(mockWork.mock.calls.length).toBe(1);
+					done();
+				});
+			});
+
+			test('should call delete function for options.delete = true transaction', (done) => {
+				transactionInstance.add(1, mockItem, {delete: true});
+				transactionInstance.saveEachEdge(undefined, undefined, mockWork).then(() => {
+					expect(mockWork.mock.calls.length).toBe(1);
+					done();
+				});
+			});
+
+			test('should call add only when added then updated as transaction', (done) => {
+				let mockAdd = jest.fn().mockReturnValue(Promise.resolve());
+				let mockUpdate = jest.fn().mockReturnValue(Promise.resolve());
+				let mockDelete = jest.fn().mockReturnValue(Promise.resolve());
+
+				transactionInstance.add(1, mockItem, {add: true});
+				transactionInstance.add(1, mockItem, {update: true});
+
+				transactionInstance.saveEachEdge(mockUpdate, mockAdd, mockDelete).then(() => {
+					expect(mockAdd.mock.calls.length).toBe(1);
+					expect(mockUpdate.mock.calls.length).toBe(0);
+					done();
+				});
+			});
+
+			test('should not call when added then deleted as transaction', (done) => {
+				let mockAdd = jest.fn().mockReturnValue(Promise.resolve());
+				let mockUpdate = jest.fn().mockReturnValue(Promise.resolve());
+				let mockDelete = jest.fn().mockReturnValue(Promise.resolve());
+
+				transactionInstance.add(1, mockItem, {add: true});
+				transactionInstance.add(1, mockItem, {delete: true});
+
+				transactionInstance.saveEachEdge(mockUpdate, mockAdd, mockDelete).then(() => {
+					expect(mockAdd.mock.calls.length).toBe(0);
+					expect(mockDelete.mock.calls.length).toBe(0);
+					done();
+				});
+			});
+
+			test('should call work syncronusly for each transaction', (done) => {
+				workTime = 10;
+				transactionInstance.add(1, mockItem);
+				transactionInstance.add(2, mockItem);
+				transactionInstance.add(3, mockItem);
+				transactionInstance.saveEachEdge(() => {
+					return new Promise((resolve, reject) => {
+						setTimeout(() => {
+							resolve()
+						}, workTime)
+				})}, true).then(() => {
+					expect(new Date().getTime() - startTime).toBeGreaterThan(30);
+					expect(new Date().getTime() - startTime).not.toBeGreaterThan(50);
+					done();
+				});
+			});
+		});
 	
 		describe('save', () => {
 			let mockWork;

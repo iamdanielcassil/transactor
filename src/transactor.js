@@ -2,8 +2,8 @@
 
 let store = {};
 let maxKey = 0;
-let get;
-let set;
+let getter;
+let setter;
 
 /**
  * init
@@ -11,8 +11,8 @@ let set;
  * @param {function} dataSet define a setter function for a custom data storage solution
  */
 let init = function init(dataGet, dataSet) {
-	get = dataGet || defaultGet;
-	set = dataSet || defaultSet;
+	getter = dataGet || defaultGet;
+	setter = dataSet || defaultSet;
 }
 
 /**
@@ -20,7 +20,7 @@ let init = function init(dataGet, dataSet) {
  * @param {Object} options 
  */
 let create = function create(options) {
-	if (get === undefined) {
+	if (getter === undefined) {
 		module.exports.init();
 	}
 
@@ -51,28 +51,22 @@ function defaultSet(value) {
  */
 class Transactor {
 	constructor(options) {
-		let transactionData = get() || [];
+		let transactionData = getter() || [];
 
-		this.key = getNextKey(transactionData);
+		this.key = _getNextKey(transactionData);
 		this._revertedTransactions = [];
 		this.options = options;
 		transactionData[this.key] = [];
-		set(transactionData);
+		setter(transactionData);
 	}
 
 	/**
 	 * Add a transaction.
-	 * @param {String} id 
-	 * @param {Object} data 
+	 * @param {*} id 
+	 * @param {*} data - transaction data to save
 	 * @param {Object} options 
 	 */
 	add(id, data, options = {}) {
-		if (!(options.add || options.update || options.delete)) {
-			options.update = true;
-		}
-		if (options.save !== false) {
-			options.save = true;
-		}
 		this._add(id, data, options);
 		this._revertedTransactions = [];
 	}
@@ -83,8 +77,8 @@ class Transactor {
 	 * @param {*} data 
 	 * @param {Object} options 
 	 */
-	asyncAdd(id, data, options = { save: true, add: false, update: true, delete: false }) {
-		return syncAsyncWork(() => {
+	asyncAdd(id, data, options = {}) {
+		return _syncAsyncWork(() => {
 			this._add(id, data, options);
 			this._revertedTransactions = [];
 			return Promise.resolve();
@@ -148,10 +142,10 @@ class Transactor {
 	 * destroy the store data for this transactor instance
 	 */
 	destroy() {
-		let transactionData = get();
+		let transactionData = getter();
 
 		delete transactionData[this.key];
-		set(transactionData);
+		setter(transactionData);
 	}
 
 	/**
@@ -187,32 +181,49 @@ class Transactor {
 		return clientData;
 	}
 
-	// /**
-	//  * Convience function - calls work function for each transaction.
-	//  * @param {Function} work Function called for each transaction.  expects work to return a promise.
-	//  * @returns Promise
-	//  */
-	// saveEach(put, post, del) {
-	// 	let transactions = this._get();
-	// 	let promises = [];
+	/**
+	 * Convience function - calls work function for each transaction.
+	 * @param {Function} work Function called for each transaction.  expects work to return a promise.
+	 * @returns Promise
+	 */
+	saveEach(put, post, del) {
+		let transactions = this._get();
 
-	// 	transactions.forEach(transaction => {
-	// 		if (transaction.options.save) {
-	// 			if (transaction.options.add) {
-	// 				_throwIfNoWorker('add', post);
-	// 				promises.push(syncAsyncWork(post, transaction.data));
-	// 			} else if (transaction.options.delete) {
-	// 				_throwIfNoWorker('delete', del);
-	// 				promises.push(syncAsyncWork(del, transaction.data));
-	// 			} else {
-	// 				_throwIfNoWorker('update', put);
-	// 				promises.push(syncAsyncWork(put, transaction.data));
-	// 			}
-	// 		}
-	// 	});
+		return this._saveEach(transactions, put, post, del);
+	}
+
+	saveEachEdge(put, post, del) {
+		let transactions = this._getLatest();
+
+		return this._saveEach(transactions, put, post, del);
+	}
+
+
+	/**
+	 * Convience function - calls work function for each transaction.
+	 * @param {Function} work Function called for each transaction.  expects work to return a promise.
+	 * @returns Promise
+	 */
+	_saveEach(transactions, put, post, del) {
+		let promises = [];
+
+		transactions.forEach(transaction => {
+			if (transaction.options.save) {
+				if (transaction.options.add) {
+					_throwIfNoWorker('add', post);
+					promises.push(_syncAsyncWork(post, transaction.data));
+				} else if (transaction.options.delete) {
+					_throwIfNoWorker('delete', del);
+					promises.push(_syncAsyncWork(del, transaction.data));
+				} else {
+					_throwIfNoWorker('update', put);
+					promises.push(_syncAsyncWork(put, transaction.data));
+				}
+			}
+		});
 	
-	// 	return Promise.all(promises);
-	// }
+		return Promise.all(promises);
+	}
 
 	/**
 	 * calls work function one time with array of transactions
@@ -221,7 +232,7 @@ class Transactor {
 	 */
 	save(put, post, del) {
 		let transactions = this._get();
-		let sorted = this._sortTransactionsByType(transactions);
+		let sorted = _sortTransactionsByType(transactions);
 
 		return this._save(sorted, put, post, del);
 	}
@@ -232,7 +243,7 @@ class Transactor {
 	 */
 	saveLatestEdge(put, post, del) {
 		let transactions = this._getLatest();
-		let sorted = this._sortTransactionsByType(transactions);
+		let sorted = _sortTransactionsByType(transactions);
 
 		return this._save(sorted, put, post, del);
 	}
@@ -244,6 +255,13 @@ class Transactor {
 	 * @param {Object} options 
 	 */
 	_add(id, data, options) {
+		if (!(options.add || options.update || options.delete)) {
+			options.update = true;
+		}
+		if (options.save !== false) {
+			options.save = true;
+		}
+
 		let transactionData = this._get();
 		let _id = this._getUniqueId(id);
 		let thisTransaction = {
@@ -252,14 +270,8 @@ class Transactor {
 			options,
 			_id,
 		};
-		let thisTransactionIndex = transactionData.findIndex(t => t._id === _id);
 
-		if (thisTransactionIndex === -1) {
-			transactionData.push(thisTransaction);
-		} else {
-			// This creates new transactions for each change.  If we are not saving this transaction, we do not need to worry about creating a unique one, we should update the old.
-			transactionData.push(thisTransaction);
-		}
+		transactionData.push(thisTransaction);
 
 		this._set(transactionData);
 	}
@@ -268,7 +280,7 @@ class Transactor {
 	 * Intenral get transactions for this instance
 	 */
 	_get() {
-		return get()[this.key];
+		return getter()[this.key];
 	}
 
 	/**
@@ -332,11 +344,11 @@ class Transactor {
 		if (dataToSave.add.length > 0) {
 			workPromises.push(post(dataToSave.add));
 		}
-		if (dataToSave.delete.length > 0) {
-			workPromises.push(del(dataToSave.delete));
-		}
 		if (dataToSave.update.length > 0) {
 			workPromises.push(put(dataToSave.update));
+		}
+		if (dataToSave.delete.length > 0) {
+			workPromises.push(del(dataToSave.delete));
 		}
 
 		if (workPromises.length === 0) {
@@ -346,40 +358,50 @@ class Transactor {
 		return Promise.all(workPromises);
 	}
 
-	_sortTransactionsByType(transactions) {
-		let dataToSave = {add: [], update: [], delete: []};
-
-		transactions.forEach(transaction => {
-			if (transaction.options.save) {
-				if (transaction.options.add) {
-					dataToSave.add.push(transaction.data);
-				} else if (transaction.options.delete) {
-					dataToSave.delete.push(transaction.data);
-				} else {
-					dataToSave.update.push(transaction.data);
-				}
-			}
-		});
-
-		return dataToSave;
-	}
-
 	/**
 	 * Intenral set transactions for this instance
 	 */
 	_set(data = []) {
-		let transactions = get();
+		let transactions = getter();
 
 		transactions[this.key] = data;
-		set(transactions);
+		setter(transactions);
 	}
+}
 
+
+
+/**
+ * gets the next transaction key for this instance.
+ * @param {Object} transactionData 
+ */
+function _getNextKey(transactionData) {
+	let keys = Object.keys(transactionData);
 	
+	return keys.length > 0 ? Math.max(...keys) + 1 : 0;
+}
+
+function 	_sortTransactionsByType(transactions) {
+	let dataToSave = {add: [], update: [], delete: []};
+
+	transactions.forEach(transaction => {
+		if (transaction.options.save) {
+			if (transaction.options.add) {
+				dataToSave.add.push(transaction.data);
+			} else if (transaction.options.delete) {
+				dataToSave.delete.push(transaction.data);
+			} else {
+				dataToSave.update.push(transaction.data);
+			}
+		}
+	});
+
+	return dataToSave;
 }
 
 let working = Promise.resolve();
 
-function syncAsyncWork(worker, payload) {
+function _syncAsyncWork(worker, payload) {
 	let nextWorking = new Promise((resolve, reject) => {
 		working.then(() => {
 			worker(payload).then(() => {
@@ -393,19 +415,9 @@ function syncAsyncWork(worker, payload) {
 	return nextWorking;
 }
 
-/**
- * gets the next transaction key for this instance.
- * @param {Object} transactionData 
- */
-function getNextKey(transactionData) {
-	let keys = Object.keys(transactionData);
-	
-	return keys.length > 0 ? Math.max(...keys) + 1 : 0;
-}
-
 function _throwIfNoWorker(type, functionToEnsure) {
 	if (typeof functionToEnsure !== 'function') {
-		throw new Error(`transaction was created with option: ${type}, but not valid function was given to handle this type.`);
+		throw new Error('transaction was created with option: ' + type + ', but no valid function was given to handle this type.');
 	}
 }
 
